@@ -4,11 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CertWise - Is this certificate genuine, and what is it worth?</title>
+  <meta name="description" content="One free check for any certificate: is it genuine, and what is it worth in the job market? With a source for every fact.">
+  <meta name="theme-color" content="#0f2f24">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <!-- the picture and text shown when the link is shared -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="CertWise - Is this certificate genuine, and what is it worth?">
+  <meta property="og:description" content="One free check for any certificate, with a source for every fact. Team Ctrl Freaks, She Solves 3.0.">
+  <meta property="og:url" content="https://purva9665.github.io/certwise-ctrlfreaks/">
+  <meta property="og:image" content="https://purva9665.github.io/certwise-ctrlfreaks/docs/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="style.css">
+  <!-- use the saved light / dark choice before the page is drawn -->
+  <script>
+    try {
+      if (localStorage.getItem("certwise-theme") === "dark") document.documentElement.dataset.theme = "dark";
+    } catch (e) { /* storage blocked: stay light */ }
+  </script>
 </head>
 <body>
 
-  <header>
+  <nav class="topnav" aria-label="Main">
+    <a class="nav-brand" href="#top">
+      <span class="logo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span>
+      CertWise
+    </a>
+    <div class="nav-links">
+      <a href="#check">Check</a>
+      <a href="#browse">Browse</a>
+      <a href="#how">How it works</a>
+      <a href="#faq">FAQ</a>
+      <button id="themeBtn" type="button" class="theme-btn" aria-label="Switch to dark mode" title="Dark mode"></button>
+    </div>
+  </nav>
+
+  <header id="top">
     <div class="brand">
       <span class="logo">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
@@ -35,7 +65,7 @@
 
   <main>
 
-    <section class="box">
+    <section class="box" id="check">
       <h2>Check a certificate</h2>
 
       <div class="step">
@@ -94,7 +124,24 @@
 
     <div id="result"></div>
 
-    <section class="box">
+    <section class="box" id="browse">
+      <h2>Browse and compare</h2>
+      <p class="small">Every certificate in our list, scored the same way. Pick a field, then tick two certificates to compare them side by side.</p>
+      <div class="filters" id="fieldChips" role="group" aria-label="Field"></div>
+      <div class="browse-bar">
+        <label for="sortBy">Sort by</label>
+        <select id="sortBy">
+          <option value="value">Market value (highest first)</option>
+          <option value="cost">Cost (cheapest first)</option>
+          <option value="name">Name (A to Z)</option>
+        </select>
+        <span id="browseCount" class="small"></span>
+      </div>
+      <div id="compareBox"></div>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <section class="box" id="how">
       <h2>How we check</h2>
       <h4>1. Genuine?</h4>
       <div class="grid2">
@@ -143,13 +190,54 @@
       <p class="small" id="dataInfo"></p>
     </section>
 
+    <section class="box" id="faq">
+      <h2>Questions people ask</h2>
+      <details class="faq">
+        <summary>Can CertWise prove that a certificate is genuine?</summary>
+        <p>For Credly, Coursera and edX links we ask the issuer itself and show its answer (this needs the CertWise server). For other issuers we check that the link is on the issuer's official verification site, flag copy-cat sites and check UGC's list of fake universities. The last step is always the issuer's own page, where the holder's name is shown - so we never say "100% genuine".</p>
+      </details>
+      <details class="faq">
+        <summary>Why does a genuine certificate get a low score?</summary>
+        <p>Genuine is not the same as valuable. A real workshop certificate has no exam and no recognised issuer, so an employer has nothing to go on. The score looks at three things: who gives it, how it is earned, and whether its jobs are in demand.</p>
+      </details>
+      <details class="faq">
+        <summary>Where do the prices, salaries and demand come from?</summary>
+        <p>From the pages linked under every fact: official exam pages and published salary and hiring reports. A monthly refresh keeps a fact only if its exact words are on the source page.</p>
+      </details>
+      <details class="faq">
+        <summary>Is my certificate uploaded anywhere?</summary>
+        <p>No. The photo or PDF is read inside your browser and never leaves it. For a live check, only the certificate's link is sent to the issuer.</p>
+      </details>
+      <details class="faq">
+        <summary>My certificate is not in the list. Can I still check it?</summary>
+        <p>Yes. Answer three quick questions - who issued it, how it was earned and whether it has a verification link - and it is scored the same way, clearly marked as based on your answers.</p>
+      </details>
+      <details class="faq">
+        <summary>Does CertWise sell courses or take commission?</summary>
+        <p>No. It is free for students, sells nothing and takes no commission, so it has no reason to push any certificate.</p>
+      </details>
+    </section>
+
   </main>
 
   <footer>
-    <p id="teamLine"></p>
+    <div class="foot">
+      <div class="foot-col">
+        <div class="foot-brand"><span class="logo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span> CertWise</div>
+        <p class="small">Is this certificate genuine, and what is it worth?</p>
+      </div>
+      <div class="foot-col">
+        <p id="teamLine" class="foot-title"></p>
+        <p class="small">Srushti Chaudhari (team leader) · Sneha Ghule · Purva Kadam · Tanishka Kadu</p>
+      </div>
+      <div class="foot-col">
+        <p class="foot-title">More</p>
+        <p class="small"><a href="https://github.com/Purva9665/certwise-ctrlfreaks" target="_blank" rel="noopener">Source code on GitHub</a><br>
+          <a href="project-log.html">Project log - how we built this</a><br>
+          <a href="https://github.com/Purva9665/certwise-ctrlfreaks/issues/new?title=Wrong%20fact%20or%20missing%20certificate" target="_blank" rel="noopener">Report a wrong fact or suggest a certificate</a></p>
+      </div>
+    </div>
     <p class="small">CertWise does not sell any course and takes no commission. A green result means "checkable on the official site" - always open the official page as the last step.</p>
-    <p class="small"><a href="project-log.html">Project log - how we built this</a> ·
-      <a href="https://github.com/Purva9665/certwise-ctrlfreaks/issues/new?title=Wrong%20fact%20or%20missing%20certificate" target="_blank" rel="noopener">Report a wrong fact or suggest a certificate</a></p>
   </footer>
 
   <!-- camera scanner (shown only while scanning) -->

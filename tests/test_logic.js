@@ -163,6 +163,45 @@ eq("google data -> pl-300 suggested", better("google-data").includes("pl-300"), 
 eq("aws ccp -> nothing higher", better("aws-ccp").length, 0);
 console.log("   better for google-cyber:", better("google-cyber").join(", "));
 
+// --- browse and compare ---
+const NO_LIVE = { certs: {}, roles: {} };
+const browse = (field, sortBy) => L.browseList(CERTS, ROLES, ROLE_INFO, NO_LIVE, field, sortBy);
+const inOrder = (list, ok) => list.every((v, i) => i === 0 || ok(list[i - 1], v));
+eq("browse: all certificates listed", browse("all", "value").length, CERTS.length);
+eq("browse: highest value first", browse("all", "value")[0].percent, 100);
+eq("browse: lowest value last", browse("all", "value")[CERTS.length - 1].percent, 0);
+eq("browse: sorted by value", inOrder(browse("all", "value"), (a, b) => a.percent >= b.percent), true);
+eq("browse: field filter keeps only that field", browse("sec", "value").every(v => v.cert.roles.includes("sec")), true);
+eq("browse: field filter finds them all", browse("cloud", "value").length, CERTS.filter(c => c.roles.includes("cloud")).length);
+eq("browse: general = not tied to one job", browse("general", "value").every(v => v.cert.roles.every(x => x === "all")), true);
+eq("browse: workshop is general", browse("general", "value").some(v => v.cert.id === "workshop"), true);
+eq("browse: every certificate is in a field or general", browse("general", "value").length +
+  CERTS.filter(c => c.roles.some(x => x !== "all")).length, CERTS.length);
+eq("browse: cheapest first", browse("all", "cost")[0].cert.costBand, "free");
+eq("browse: sorted by name", inOrder(browse("all", "name"), (a, b) =>
+  a.cert.name.replace(/^[^a-z0-9]+/i, "").localeCompare(b.cert.name.replace(/^[^a-z0-9]+/i, "")) <= 0), true);
+let rows = L.compareRows(mv("pl-300"), mv("google-data"));
+eq("compare: 7 rows", rows.length, 7);
+eq("compare: pl-300 beats google data on value", rows[0].better, "a");
+eq("compare: the other way round", L.compareRows(mv("google-data"), mv("pl-300"))[0].better, "b");
+eq("compare: supervised exam beats online tests", rows[2].better, "a");
+eq("compare: price has no winner", rows.find(x => x.label === "Price").better, "");
+eq("compare: a certificate against itself is a tie", L.compareRows(mv("rhcsa"), mv("rhcsa")).every(x => x.better === ""), true);
+eq("compare: warning shown", L.compareRows(mv("cissp"), mv("secplus")).find(x => x.label === "Good to know").a.startsWith("Not for freshers yet"), true);
+
+// --- the one-line verdict at the top of a result ---
+let line = L.verdictLine(g("aws-ccp", "https://www.credly.com/badges/abc"), mv("aws-ccp"));
+eq("verdict line: genuine side", line.genuine.text, "Official verification link");
+eq("verdict line: worth side", line.worth.text, "High market value (100%)");
+eq("verdict line: worth colour", line.worth.level, "green");
+line = L.verdictLine(g("google-data", "https://coursera-verify.com/verify/X"), mv("google-data"));
+eq("verdict line: look-alike is red", line.genuine.level, "red");
+eq("verdict line: a fake has no value", line.worth.text, "No market value if it is fake");
+line = L.verdictLine(anyG("", "no", "Commercial University Ltd., Daryaganj"), cv("unknown", "attendance", ""));
+eq("verdict line: fake university", line.worth.text, "No market value");
+line = L.verdictLine(g("workshop", ""), mv("workshop"));
+eq("verdict line: genuine but low value", line.worth.text, "Low market value (0%)");
+
 // --- free refresh helpers (refresh/pages.js) ---
 const P = require("../refresh/pages.js");
 const longPage = "x ".repeat(3000) + "The CCNA exam fee is USD 300 plus tax. " + "y ".repeat(3000);

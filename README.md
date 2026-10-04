@@ -99,6 +99,13 @@ What makes it different:
 - Price, the jobs the certificate leads to, fresher salary and demand — each with a source link.
 - Up to three **higher-value certificates** in the same field.
 - Warnings, for example when an exam has closed or needs work experience.
+- **One-line verdict** at the top of every result: both answers at a glance.
+
+**Browse and compare**
+
+- **Browse** all 44 certificates as cards, filtered by field (Cloud, Cybersecurity, Data Analyst...) and sorted by
+  market value, cost or name.
+- **Compare** any two side by side: score, the three checks, price, jobs and how each is verified.
 
 **Getting the details off a certificate**
 
@@ -112,8 +119,9 @@ What makes it different:
 - **44 certificates** with checked facts, plus a **3-question check for any certificate not in the list**.
 - **Downloadable PDF report** of every result, with clickable proof links.
 - Typo-tolerant search ("aws cloud practitoner" still works).
-- Works on phones; no login and no cost.
-- 149 automated tests, run on every push.
+- Works on phones, with a **light and dark theme**; no login and no cost.
+- Navigation, a "Questions people ask" section and a link-preview image, so it reads like a finished product.
+- 174 automated tests, run on every push.
 
 ## Technologies / Tech Stack Used
 
@@ -124,13 +132,13 @@ What makes it different:
 | PDF reading | [pdf.js](https://mozilla.github.io/pdf.js/) 3.11.174 | Reads links and text inside an uploaded PDF |
 | Text reader | [Tesseract.js](https://tesseract.projectnaptha.com/) 5 | OCR for images and scanned PDFs that have no QR code |
 | PDF report | [jsPDF](https://github.com/parallax/jsPDF) 2.5.1 | Writes the downloadable report |
-| Browser APIs | File API, Canvas, `getUserMedia` | Upload, image handling and the camera scanner |
+| Browser APIs | File API, Canvas, `getUserMedia`, `localStorage` | Upload, image handling, the camera scanner and remembering the light / dark choice |
 | Backend | Node.js (built-in `http` module, no framework) | Serves the page and the small API (`/api/health`, `/api/live`) |
 | Issuer records | Credly Open Badges 2.0 records; Coursera and edX certificate pages | The live check with the issuer |
 | Core logic | Plain JavaScript in `logic.js` (edit distance, pattern matching, scoring) | The genuineness check and the market value score |
 | Data | JavaScript data files | 44 certificates, 17 verification methods, job data and UGC's list, with proof links |
 | Data refresh | Gemini API (free key), plus our own quote checker | Monthly update of prices, salaries and demand |
-| Testing | A plain Node.js test file (no test framework) | 149 tests of the logic and the API |
+| Testing | A plain Node.js test file (no test framework) | 174 tests of the logic and the API |
 | Automation | GitHub Actions | Runs the tests on every push; runs the monthly refresh |
 | Hosting | GitHub Pages (page), Dockerfile (server) | ₹0 hosting for the page; a container file for the server |
 
@@ -173,7 +181,7 @@ Then open http://localhost:5174 in your browser. To use another port, set the `P
 npm test
 ```
 
-149 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
+174 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
 
 **Other ways**
 
@@ -203,8 +211,9 @@ made-up sample certificates.
 certwise-ctrlfreaks/
 ├── index.html              The page
 ├── style.css               The design
-├── app.js                  Page behaviour: form, upload, camera, result, PDF report
-├── logic.js                THE CORE: search, genuineness check, market value score
+├── app.js                  Page behaviour: form, upload, camera, result, browse and compare, PDF report
+├── logic.js                THE CORE: search, genuineness check, market value score, browse and compare
+├── favicon.svg             The icon in the browser tab
 ├── serve.js                The server: serves the page and the API
 ├── api/
 │   └── live.js             Live check: asks Credly, Coursera or edX about a certificate
@@ -219,9 +228,10 @@ certwise-ctrlfreaks/
 │   ├── pages.js            Downloads the source pages
 │   └── verify.js           Keeps a fact only if its exact quote is on the page
 ├── tests/
-│   ├── test_logic.js       149 automated tests
+│   ├── test_logic.js       174 automated tests
 │   └── sample_*            Made-up certificates for trying the upload
 ├── docs/
+│   ├── og-image.png        The picture shown when the link is shared
 │   └── screenshots/        The images in this README
 ├── .github/workflows/
 │   ├── ci.yml              Runs the tests on every push
@@ -266,7 +276,19 @@ on the student's answers.
 
 ![Three questions for a certificate not in the list](docs/screenshots/07-not-in-list-questions.png)
 
-**8. On a phone**
+**8. Browse** — every certificate as a card, filtered by field and sorted by market value.
+
+![Browse certificates by field](docs/screenshots/10-browse.png)
+
+**9. Compare** — two certificates side by side; a green cell is the stronger of the two.
+
+![Two certificates compared side by side](docs/screenshots/11-compare.png)
+
+**10. Dark theme**
+
+![A result in the dark theme](docs/screenshots/12-dark-mode.png)
+
+**11. On a phone**
 
 <img src="docs/screenshots/09-phone.png" alt="CertWise on a phone" width="300">
 
@@ -286,7 +308,6 @@ on the student's answers.
 - **Host the server online** so the live check with the issuer also works on the public website.
 - **Live checks for more issuers**, adding each one only after confirming how its public records work.
 - **Bulk and resume check** for placement cells: upload a resume or many certificates and get one table.
-- **Browse and compare** all certificates in a field, sorted by market value.
 - **Validity check:** show when a certificate expires and what must be renewed.
 - **Signed credentials:** verify Open Badges 3.0 / W3C Verifiable Credentials signatures directly [10][11].
 - **Hindi and Marathi** versions.
@@ -370,7 +391,10 @@ With `npm start` running:
 4. **₹9 workshop** → *Can't be verified* and *Low market value* → higher-value picks.
 5. **Fake university degree** → *Fake university* (UGC list, with proof).
 6. **One not in our list** → answer the 3 questions → a score marked as based on your answers.
-7. **Download report** on any result. On a phone: **Scan the QR code with your camera**.
+7. **Browse** → pick *Data Analyst* → tick *PL-300* and *Google Data Analytics* → the side-by-side table shows
+   why one scores 100% and the other 67%.
+8. **Download report** on any result. Switch the **dark theme** from the top bar. On a phone: **Scan the QR code
+   with your camera**.
 
 ## Questions and answers
 

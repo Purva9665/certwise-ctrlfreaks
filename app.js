@@ -39,7 +39,10 @@ const ICONS = {
   briefcase: "<rect x='2' y='7' width='20' height='14' rx='2' ry='2'/><path d='M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16'/>",
   bulb: "<path d='M9 18h6'/><path d='M10 22h4'/><path d='M12 2a7 7 0 0 0-4 12.74V17h8v-2.26A7 7 0 0 0 12 2z'/>",
   download: "<path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='7 10 12 15 17 10'/><line x1='12' y1='15' x2='12' y2='3'/>",
-  edit: "<path d='M12 20h9'/><path d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'/>"
+  edit: "<path d='M12 20h9'/><path d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'/>",
+  moon: "<path d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/>",
+  sun: "<circle cx='12' cy='12' r='5'/><line x1='12' y1='1' x2='12' y2='3'/><line x1='12' y1='21' x2='12' y2='23'/><line x1='4.22' y1='4.22' x2='5.64' y2='5.64'/><line x1='18.36' y1='18.36' x2='19.78' y2='19.78'/><line x1='1' y1='12' x2='3' y2='12'/><line x1='21' y1='12' x2='23' y2='12'/><line x1='4.22' y1='19.78' x2='5.64' y2='18.36'/><line x1='18.36' y1='5.64' x2='19.78' y2='4.22'/>",
+  columns: "<path d='M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18'/>"
 };
 
 function icon(name) {
@@ -124,6 +127,13 @@ function setup() {
   // is the CertWise API running? then the live check with the issuer is switched on
   findApi();
 
+  // light / dark switch in the navigation
+  $("themeBtn").addEventListener("click", () => setTheme(document.documentElement.dataset.theme !== "dark"));
+  showThemeButton();
+
+  // browse and compare
+  setupBrowse();
+
   // numbers in the header and footer come straight from our data files
   const ways = Object.keys(VERIFY_METHODS).filter(k => VERIFY_METHODS[k].domains.length > 0).length;
   $("statCerts").textContent = CERTS.length;
@@ -133,6 +143,135 @@ function setup() {
   $("dataInfo").textContent = "Our list has " + CERTS.length + " certificates and " + ways +
     " official ways of verifying them. Live facts last refreshed: " +
     (LIVE_DATA.refreshedOn || "not yet") + ".";
+}
+
+// ---------- light / dark ----------
+
+function setTheme(dark) {
+  if (dark) document.documentElement.dataset.theme = "dark";
+  else delete document.documentElement.dataset.theme;
+  try {
+    localStorage.setItem("certwise-theme", dark ? "dark" : "light");
+  } catch (e) {
+    // storage is blocked: the choice just won't be remembered
+  }
+  showThemeButton();
+}
+
+function showThemeButton() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  const btn = $("themeBtn");
+  btn.innerHTML = icon(dark ? "sun" : "moon");
+  btn.title = dark ? "Light mode" : "Dark mode";
+  btn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+}
+
+// ---------- browse and compare ----------
+
+let browseField = "all";   // "all", a role id, or "general"
+let compareIds = [];       // up to two certificate ids, oldest first
+
+const LEVEL_WORD = { green: "High", amber: "Medium", red: "Low" };
+const EARNED = {
+  proctored: "Supervised exam",
+  graded: "Online tests or projects",
+  completion: "For finishing the course",
+  attendance: "For attending"
+};
+
+function setupBrowse() {
+  const fields = [{ id: "all", name: "All" }].concat(ROLES, [{ id: "general", name: "General" }]);
+  $("fieldChips").innerHTML = fields.map(f => "<button type='button' class='chip" + (f.id === browseField ? " on" : "") +
+    "' data-field='" + f.id + "'>" + esc(f.name) + "</button>").join("");
+  for (const chip of $("fieldChips").querySelectorAll(".chip")) {
+    chip.addEventListener("click", () => {
+      browseField = chip.dataset.field;
+      for (const other of $("fieldChips").querySelectorAll(".chip")) other.classList.toggle("on", other === chip);
+      showCards();
+    });
+  }
+  $("sortBy").addEventListener("change", showCards);
+  showCards();
+}
+
+// one card per certificate, scored by the same marketValue() the check uses
+function showCards() {
+  const list = browseList(CERTS, ROLES, ROLE_INFO, LIVE_DATA, browseField, $("sortBy").value);
+  $("browseCount").textContent = list.length + " certificate" + (list.length === 1 ? "" : "s");
+  let html = "";
+  for (const v of list) {
+    const c = v.cert;
+    html += "<article class='card' data-level='" + v.level + "'>" +
+      "<div class='card-top'><span class='pill " + v.level + "'>" + LEVEL_WORD[v.level] + " · " + v.percent + "%</span>" +
+      "<label class='cmp'><input type='checkbox' data-id='" + esc(c.id) + "'" +
+      (compareIds.includes(c.id) ? " checked" : "") + "> Compare</label></div>" +
+      "<h4>" + esc(c.name) + "</h4><div class='small'>" + esc(c.issuer) + "</div>" +
+      "<div class='card-facts'>" + esc(EARNED[c.assessment]) + (c.costNote ? " · " + esc(c.costNote) : "") + "</div>" +
+      "<a href='#' class='pick' data-name='" + esc(c.name) + "'>Check this certificate</a></article>";
+  }
+  $("cards").innerHTML = html;
+  for (const box of $("cards").querySelectorAll("input[type='checkbox']")) {
+    box.addEventListener("change", () => toggleCompare(box.dataset.id, box.checked));
+  }
+  wirePicks();
+}
+
+function toggleCompare(id, on) {
+  compareIds = compareIds.filter(x => x !== id);
+  if (on) compareIds.push(id);
+  if (compareIds.length > 2) compareIds.shift();     // a third pick replaces the oldest one
+  for (const box of $("cards").querySelectorAll("input[type='checkbox']")) {
+    box.checked = compareIds.includes(box.dataset.id);
+  }
+  showCompare();
+  if (compareIds.length === 2) $("compareBox").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// the two picked certificates side by side
+function showCompare() {
+  const box = $("compareBox");
+  if (compareIds.length === 0) {
+    box.innerHTML = "";
+    return;
+  }
+  const picks = compareIds.map(id => marketValue(CERTS.find(c => c.id === id), ROLES, ROLE_INFO, LIVE_DATA));
+  const clear = "<button type='button' class='ghost' id='compareClear'>Clear</button>";
+  if (picks.length === 1) {
+    box.innerHTML = "<div class='compare-hint'>" + icon("columns") + "<span class='grow'><b>" + esc(picks[0].cert.name) +
+      "</b> is picked. Tick one more certificate to compare.</span>" + clear + "</div>";
+  } else {
+    const a = picks[0], b = picks[1];
+    const rows = compareRows(a, b);
+    // row 0 is the score, the next rows are the three checks, the rest is plain text
+    const cell = (v, row, i, side) => {
+      let inner;
+      if (i === 0) {
+        inner = "<span class='pill " + v.level + "'>" + LEVEL_WORD[v.level] + " · " + v.percent + "%</span>";
+      } else if (i <= v.checks.length) {
+        const ch = v.checks[i - 1];
+        inner = dotsHtml(ch.points, ch.max) + "<div class='check-why'>" + esc(ch.reason) + "</div>";
+      } else {
+        inner = esc(row[side]);
+      }
+      return "<td" + (row.better === side ? " class='win'" : "") + ">" + inner + "</td>";
+    };
+    const head = v => "<th><a href='#' class='pick' data-name='" + esc(v.cert.name) + "'>" + esc(v.cert.name) + "</a>" +
+      "<div class='small'>" + esc(v.cert.issuer) + "</div></th>";
+    let html = "<div class='compare'><div class='compare-head'><b>" + icon("columns") + " Side by side</b>" + clear + "</div>" +
+      "<table class='cmp-table'><tr><th></th>" + head(a) + head(b) + "</tr>";
+    rows.forEach((row, i) => {
+      html += "<tr><td class='cmp-label'>" + esc(row.label) + "</td>" + cell(a, row, i, "a") + cell(b, row, i, "b") + "</tr>";
+    });
+    const how = v => VERIFY_METHODS[CERT_VERIFY[v.cert.id]].name;
+    html += "<tr><td class='cmp-label'>How it is verified</td><td>" + esc(how(a)) + "</td><td>" + esc(how(b)) + "</td></tr>";
+    box.innerHTML = html + "</table><p class='small'>A green cell is the stronger of the two. Click a name to run the full check.</p></div>";
+  }
+  $("compareClear").addEventListener("click", () => {
+    compareIds = [];
+    for (const tick of $("cards").querySelectorAll("input[type='checkbox']")) tick.checked = false;
+    showCompare();
+  });
+  wirePicks();
 }
 
 // ---------- read the certificate file (image or PDF) ----------
@@ -417,6 +556,24 @@ function showResult() {
   else $("result").innerHTML = "<section class='box result'>" + html + "</section>";
   $("reportBtn").addEventListener("click", downloadReport);
   wirePicks();
+  countUp();
+}
+
+// the percent inside each ring counts up while the ring fills
+function countUp() {
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  for (const text of document.querySelectorAll("#result .gauge text")) {
+    const target = parseInt(text.textContent, 10);
+    if (!(target > 0)) continue;
+    const start = performance.now();
+    const step = now => {
+      const t = Math.min(1, (now - start) / 800);
+      text.textContent = Math.round(target * (1 - Math.pow(1 - t, 3))) + "%";
+      if (t < 1) requestAnimationFrame(step);
+    };
+    text.textContent = "0%";
+    requestAnimationFrame(step);
+  }
 }
 
 // ---------- live check: ask the issuer itself (needs the CertWise API - run "npm start") ----------
@@ -462,6 +619,14 @@ async function askIssuer() {
   }
 }
 
+// both answers in one line, shown above the two panels
+function stripHtml(g, v) {
+  const line = verdictLine(g, v);
+  const part = (ask, side) => "<div class='strip-item " + side.level + "'><span class='strip-ask'>" + ask + "</span>" +
+    icon(LEVEL_ICON[side.level]) + "<b>" + esc(side.text) + "</b></div>";
+  return "<div class='strip'>" + part("Genuine?", line.genuine) + part("Worth?", line.worth) + "</div>";
+}
+
 // the two answer panels with a heading and the report button
 function resultHtml(cert, g, v) {
   return "<div class='result-head'><div class='tile'>" + icon("award") + "</div>" +
@@ -469,6 +634,7 @@ function resultHtml(cert, g, v) {
     "<button id='reportBtn' class='ghost'>" + icon("download") + " Download report</button></div>" +
     (cert.custom ? "<div class='warn'>" + icon("edit") + "<span>This certificate is not in our list, so it is scored from " +
       "<b>your answers</b>. We could not check those facts ourselves.</span></div>" : "") +
+    stripHtml(g, v) +
     "<div class='two'>" + genuineHtml(cert, g) + valueHtml(cert, v, g) + "</div>";
 }
 

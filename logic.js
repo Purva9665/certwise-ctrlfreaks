@@ -585,8 +585,57 @@ function betterValue(cert, certs, roles, roleInfo, live, howMany) {
   return list.slice(0, howMany);
 }
 
+// ---------- 5. browse and compare ----------
+
+// every certificate with its score, for the "Browse" cards.
+// field : "all", a role id like "cloud", or "general" (certificates not tied to one job)
+// sortBy: "value" (highest score first), "cost" (cheapest first) or "name"
+function browseList(certs, roles, roleInfo, live, field, sortBy) {
+  const list = [];
+  for (const c of certs) {
+    const fields = c.roles.filter(r => r !== "all");
+    if (field === "general" && fields.length > 0) continue;
+    if (field !== "all" && field !== "general" && !fields.includes(field)) continue;
+    list.push(marketValue(c, roles, roleInfo, live));
+  }
+  const plain = v => v.cert.name.replace(/^[^a-z0-9]+/i, "");      // ignore a leading quote mark
+  const byName = (a, b) => plain(a).localeCompare(plain(b));
+  if (sortBy === "name") list.sort(byName);
+  else if (sortBy === "cost") list.sort((a, b) => (costRank(a.cert) - costRank(b.cert)) || (b.percent - a.percent) || byName(a, b));
+  else list.sort((a, b) => (b.percent - a.percent) || (costRank(a.cert) - costRank(b.cert)) || byName(a, b));
+  return list;
+}
+
+// two scored certificates side by side: one row per thing to compare.
+// better = "a", "b" or "" (a tie, or a row that has no winner such as the price)
+function compareRows(a, b) {
+  const win = (x, y) => (x > y ? "a" : (y > x ? "b" : ""));
+  const rows = [{ label: "Market value", a: a.percent + "% - " + a.band, b: b.percent + "% - " + b.band,
+                  better: win(a.percent, b.percent) }];
+  for (let i = 0; i < a.checks.length; i++) {
+    const ca = a.checks[i], cb = b.checks[i];
+    rows.push({ label: ca.name, a: ca.points + " of " + ca.max + " - " + ca.reason,
+                b: cb.points + " of " + cb.max + " - " + cb.reason, better: win(ca.points, cb.points) });
+  }
+  const jobs = v => (v.jobs.length > 0 ? v.jobs.map(j => j.name).join(", ") : "Depends on the course");
+  rows.push({ label: "Price", a: a.cert.costNote || "-", b: b.cert.costNote || "-", better: "" });
+  rows.push({ label: "Jobs it leads to", a: jobs(a), b: jobs(b), better: "" });
+  rows.push({ label: "Good to know", a: a.warning || "Open to freshers", b: b.warning || "Open to freshers", better: "" });
+  return rows;
+}
+
+// the one-line answer shown at the top of every result: both questions at a glance
+function verdictLine(g, v) {
+  let worth;
+  if (g.verdict === "Fake university") worth = { level: "red", text: "No market value" };
+  else if (g.level === "red") worth = { level: "red", text: "No market value if it is fake" };
+  else worth = { level: v.level, text: v.band + " (" + v.percent + "%)" };
+  return { genuine: { level: g.level, text: g.verdict }, worth: worth };
+}
+
 if (typeof module !== "undefined") {
   module.exports = { normalize, editDistance, rankCerts, findCert, hostOf, looksLike, matchFakeUni,
                      checkFile, pickLink, checkGenuine, demandSources, marketValue, betterValue,
-                     customCert, checkGenuineAny, findInText, sameCert, applyLive };
+                     customCert, checkGenuineAny, findInText, sameCert, applyLive,
+                     browseList, compareRows, verdictLine };
 }
