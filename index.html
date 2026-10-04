@@ -75,7 +75,8 @@
           <input id="certInput" type="text" placeholder="e.g. AWS Cloud Practitioner, NPTEL, RHCSA, AI tools workshop" autocomplete="off">
         </div>
         <div class="chips">Try an example:
-          <a href="#" class="try" data-cert="AWS Certified Cloud Practitioner" data-link="https://www.credly.com/badges/00000000-0000-0000-0000-000000000000">AWS badge with a made-up ID</a>
+          <!-- only shown when the CertWise server is running: catching a made-up ID needs the live check -->
+          <a href="#" class="try live-only hidden" data-cert="AWS Certified Cloud Practitioner" data-link="https://www.credly.com/badges/00000000-0000-0000-0000-000000000000">AWS badge with a made-up ID</a>
           <a href="#" class="try" data-cert="Google Data Analytics" data-link="https://coursera-verify.com/verify/SAMPLE123">look-alike Coursera link</a>
           <a href="#" class="try" data-cert="RHCSA" data-link="140-123-456">Red Hat ID</a>
           <a href="#" class="try" data-cert="AI tools workshop" data-link="">₹9 workshop</a>

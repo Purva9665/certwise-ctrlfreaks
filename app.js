@@ -579,24 +579,41 @@ function countUp() {
 // ---------- live check: ask the issuer itself (needs the CertWise API - run "npm start") ----------
 
 let apiReady = false;    // is our API reachable? (it isn't on a plain file or on GitHub Pages)
+let apiCheck = Promise.resolve();   // finishes once we know whether the API is there
 let checkNo = 0;         // so a slow answer for an old check can't overwrite a newer one
+
+// links the live check can ask an issuer about
+const LIVE_LINK = /credly\.com\/badges\/|coursera\.org\/verify\/|edx\.org\/certificates\//i;
 
 function findApi() {
   if (!location.protocol.startsWith("http")) return;
-  fetch("api/health")
+  apiCheck = fetch("api/health")
     .then(res => (res.ok ? res.json() : null))
     .then(info => {
       apiReady = !!(info && info.ok);
-      if (apiReady) $("apiInfo").textContent = "Live check with the issuer is on (Credly, Coursera, edX).";
+      if (!apiReady) return;
+      $("apiInfo").textContent = "Live check with the issuer is on (Credly, Coursera, edX).";
+      // examples that only make sense with the live check
+      for (const a of document.querySelectorAll(".live-only")) a.classList.remove("hidden");
     })
     .catch(() => { apiReady = false; });
 }
 
 // only when the link already looks official: ask the issuer whether the certificate really exists
 async function askIssuer() {
-  if (!apiReady || !last || last.input.link === "" || last.g.level !== "green") return;
+  if (!last || last.input.link === "" || last.g.level !== "green") return;
   const mine = ++checkNo;
+  await apiCheck;
+  if (mine !== checkNo || !last) return;
   const note = $("liveNote");
+  if (!apiReady) {
+    // no server here (for example on GitHub Pages): say plainly how far this check went
+    if (note && LIVE_LINK.test(last.input.link)) {
+      note.textContent = "Only the link's website was checked here. Asking the issuer whether this exact certificate " +
+        "exists needs the CertWise server - open the official check to confirm it.";
+    }
+    return;
+  }
   if (note) note.textContent = "Asking the issuer...";
   try {
     const res = await fetch("api/live", {

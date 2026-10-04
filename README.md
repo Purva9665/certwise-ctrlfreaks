@@ -191,7 +191,8 @@ npm test
 - **In a container:** `docker build -t certwise .` then `docker run -p 5174:5174 certwise`. The Dockerfile is
   included but we have not been able to test it yet.
 
-**Try these** (they are one-click examples on the page)
+**Try these** (they are one-click examples on the page; the first one appears only while the server is running,
+because catching a made-up ID needs the live check)
 
 | Example | What you should see |
 |---|---|

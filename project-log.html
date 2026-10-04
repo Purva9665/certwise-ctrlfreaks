@@ -23,9 +23,9 @@
         <tr><th>Solution</th><td>CertWise: one free check for any certificate - <b>is it genuine?</b> and <b>what is it worth?</b> - with a source for every fact.</td></tr>
         <tr><th>This copy</th><td><a href="index.html">Open CertWise version 2</a> - the Round 2 prototype. Code: <a href="https://github.com/Purva9665/certwise-ctrlfreaks">github.com/Purva9665/certwise-ctrlfreaks</a> (the Round 2 repository), live at <a href="https://purva9665.github.io/certwise-ctrlfreaks/">purva9665.github.io/certwise-ctrlfreaks</a>.</td></tr>
         <tr><th>Rounds</th><td>Round 1 - idea + 6-slide PPT, 3 Oct 2026 - <b>cleared: we are one of 41 shortlisted teams</b> · Round 2 - prototype + public GitHub repository + online demo, submitted on Unstop from 5 Oct (we are a non-PCCOE team) · Round 3 - 5-hour build at PCCOE, 9 Oct</td></tr>
-        <tr><th>Status</th><td>44 certificates · 17 official verification methods · UGC fake-university list · check any certificate with 3 questions · live check with the issuer (Credly, Coursera, edX) · certificate upload (image or PDF, 5 MB limit) with a text reader · camera QR scan · downloadable PDF report · browse and compare · light and dark theme · 174 automated tests passing · monthly refresh built, waiting for a key</td></tr>
+        <tr><th>Status</th><td>44 certificates · 17 official verification methods · UGC fake-university list · check any certificate with 3 questions · live check with the issuer (Credly, Coursera, edX) · certificate upload (image or PDF, 5 MB limit) with a text reader · camera QR scan · downloadable PDF report · browse and compare · light and dark theme · 174 automated tests passing · monthly refresh built (not run yet)</td></tr>
       </table>
-      <p class="small">Jump to: <a href="#history">History</a> · <a href="#research">Research</a> · <a href="#exists">Does it already exist?</a> · <a href="#issuers">How issuers verify</a> · <a href="#built">What we built</a> · <a href="#refresh">Data refresh</a> · <a href="#testing">Testing</a> · <a href="#next">What's next</a></p>
+      <p class="small">Jump to: <a href="#history">History</a> · <a href="#research">Research</a> · <a href="#exists">Does it already exist?</a> · <a href="#issuers">How issuers verify</a> · <a href="#built">What we built</a> · <a href="#refresh">Data refresh</a> · <a href="#testing">Testing</a></p>
     </section>
 
     <section class="box" id="history">
@@ -40,7 +40,7 @@
         <tr><td>3 Oct, ~10:50 AM</td><td><b>Decision: this is now our problem statement.</b> Dive as deep as possible.</td>
           <td>Deep research: how every issuer verifies certificates, the UGC fake-university list, data sources for market value, privacy law, and close existing tools (CertForge, SEEK Pass, Reclaim Protocol, TrueDoc, LegitDoc, Certopus, CertifyMe).</td></tr>
         <tr><td>3 Oct, ~11:00 AM</td><td>Change everything we have made, and remove everything previous.</td>
-          <td>Rebuilt the app (genuineness check + market value score + QR from a photo), the 6-slide deck, the slide notes, the README and this log. The earlier version is removed (it stays only in the GitHub commit history).</td></tr>
+          <td>Rebuilt the app (genuineness check + market value score + QR from a photo), the 6-slide deck, the slide notes, the README and this log. The earlier version was removed.</td></tr>
         <tr><td>3 Oct, ~1:00 PM</td><td>Add more design to the prototype.</td>
           <td>New look in the deck's emerald and gold colours: hero header with live numbers, a guided 3-step form with icons and example chips, a drag-and-drop area for the certificate file, status blocks with icons, a ring gauge for the market value score, point dots for each check, job cards with salary, and a phone layout. The checks themselves did not change.</td></tr>
         <tr><td>3 Oct, ~1:20 PM</td><td>The upload should have a size limit and accept more types, like PDF.</td>
@@ -50,23 +50,21 @@
         <tr><td>3 Oct, ~2:00 PM</td><td><b>Keep the current version unchanged, copy it, and add features 1, 4, 6 and 8.</b></td>
           <td>Copied the app to a new folder (version 2); the original folder, GitHub repo and live site were not touched. Added: (1) a 3-question check for any certificate not in our list, (4) QR scanning with the phone camera, (6) 13 more certificates and 3 more verification methods, each fact checked on the official page, (8) a downloadable one-page PDF report with clickable proof links. 114 tests.</td></tr>
         <tr><td>3 Oct, ~4:30 PM</td><td>Looking at a winning SIH deck's tech stack: what is our stack, and what can we add later (for Round 2)?</td>
-          <td>Listed our stack layer by layer (built vs planned) and tested what a live check could use. Found that Credly, Coursera and edX answer differently for real and made-up certificate IDs, so a small API can ask the issuer directly. A first piece is in place (<code>api/live.js</code>, the <code>/api/live</code> route and helper functions) but it is <b>not connected to the page yet</b>. The Round 2 list is in <a href="#round2">Planned for Round 2</a>.</td></tr>
+          <td>Listed our stack layer by layer (built vs planned) and tested what a live check could use. Found that Credly, Coursera and edX answer differently for real and made-up certificate IDs, so a small API can ask the issuer directly. A first piece is in place (<code>api/live.js</code>, the <code>/api/live</code> route and helper functions) but it is <b>not connected to the page yet</b>.</td></tr>
         <tr><td>3 Oct, ~8:15 PM</td><td>Use the Round 2 copy and add the items from option B.</td>
           <td>Added to this copy: (1) a <b>live check with the issuer</b> - the page asks our server, which asks Credly, Coursera or edX whether the certificate exists and reads the badge name, issuer and dates; (2) a <b>text reader</b> for certificates with no QR code; (3) tests on every push and a container file; (4) a "report a wrong fact" link. Tested against the real issuers with made-up and public IDs. 149 tests. The original was not touched.</td></tr>
-        <tr><td>3 Oct, ~8:25 PM</td><td>Push it to GitHub.</td>
-          <td>Published this copy as its own repository, <a href="https://github.com/PersonalPurva/certwise-v2">PersonalPurva/certwise-v2</a>, so the original repository and its live site stay unchanged. The tests now run automatically on every push.</td></tr>
-        <tr><td>3 Oct, ~8:40 PM</td><td>Deploy both the sites on the Purva9665 account.</td>
-          <td>Pushed both projects to the Purva9665 GitHub account as public repositories and switched on GitHub Pages for each. Original: <a href="https://purva9665.github.io/certwise/">purva9665.github.io/certwise</a> (code: <a href="https://github.com/Purva9665/certwise">Purva9665/certwise</a>). Version 2: <a href="https://purva9665.github.io/certwise-v2/">purva9665.github.io/certwise-v2</a> (code: <a href="https://github.com/Purva9665/certwise-v2">Purva9665/certwise-v2</a>). Checked that every page and data file loads. The original's files were not changed. On GitHub Pages version 2 runs without the live check with the issuer, because that needs the server (<code>npm start</code>); everything else works.</td></tr>
         <tr><td>3 Oct, ~8:50 PM</td><td>Search more and dive deeper to find the links of the references, and stick to the problem statement.</td>
           <td>Found 15 more references and read each one's exact words on its own page: official sources (UGC's list, a Rajya Sabha reply, DigiLocker NAD), large surveys (Pearson VUE with 23,714 candidates, Coursera's report with India numbers), two research papers on what online certificates are worth, and the open standards our genuineness check uses (Open Badges, W3C Verifiable Credentials). Sources that were real but not about certificates were left out, and so were numbers we could not find on the page. The full list is in <a href="#research">Research</a>. The slides have not been changed.</td></tr>
-        <tr><td>5 Oct, ~3:30 AM</td><td>We are selected for Round 2 (one of 41 shortlisted teams). Create the GitHub repository the organisers asked for, in PersonalPurva.</td>
-          <td>Made this repository, <a href="https://github.com/PersonalPurva/certwise-v2">PersonalPurva/certwise-v2</a> (public), match the organisers' list. Rewrote <code>README.md</code> with every section they asked for, in their order: problem statement, proposed solution, features, tech stack, installation and setup, how to run, project structure, screenshots, team members and future scope. Took nine real screenshots of the running prototype (<code>docs/screenshots/</code>), including the live check with the issuer and the text reader. Switched on GitHub Pages for this repository, so there is a live demo at <a href="https://personalpurva.github.io/certwise-v2/">personalpurva.github.io/certwise-v2</a> (without the live check, which needs the server).</td></tr>
+        <tr><td>5 Oct, ~3:30 AM</td><td>We are selected for Round 2 (one of 41 shortlisted teams). Prepare the GitHub repository the organisers asked for.</td>
+          <td>Made the repository match the organisers' list. Rewrote <code>README.md</code> with every section they asked for, in their order: problem statement, proposed solution, features, tech stack, installation and setup, how to run, project structure, screenshots, team members and future scope. Took nine real screenshots of the running prototype (<code>docs/screenshots/</code>), including the live check with the issuer and the text reader. Switched on GitHub Pages, so there is a live demo (without the live check, which needs the server).</td></tr>
         <tr><td>5 Oct, ~3:35 AM</td><td>Add my teammates' names in the team members section.</td>
           <td>The Team Members section of <code>README.md</code> now lists all four of us: Srushti Chaudhari (team leader), Sneha Ghule, Purva Kadam and Tanishka Kadu.</td></tr>
-        <tr><td>5 Oct, ~3:50 AM</td><td>Keep only the free way of refreshing the data, and move the Round 2 repository to a new repository on the Purva9665 account, named certwise-ctrlfreaks.</td>
-          <td>The monthly refresh now uses only the free Gemini key; the paid option and its package were removed, so the project has no packages to install at all (<code>refresh/refresh.mjs</code>, <code>package.json</code>, the refresh workflow). Tests still pass and the refresh's dry run works. Every link in <code>README.md</code>, the page footer and this log now points to <a href="https://github.com/Purva9665/certwise-ctrlfreaks">github.com/Purva9665/certwise-ctrlfreaks</a> and <a href="https://purva9665.github.io/certwise-ctrlfreaks/">purva9665.github.io/certwise-ctrlfreaks</a>.</td></tr>
+        <tr><td>5 Oct, ~3:50 AM</td><td>Keep only the free way of refreshing the data.</td>
+          <td>The monthly refresh now uses only the free Gemini key; the paid option and its package were removed, so the project has no packages to install at all (<code>refresh/refresh.mjs</code>, <code>package.json</code>, the refresh workflow). Tests still pass and the refresh's dry run works.</td></tr>
         <tr><td>5 Oct, ~4:30 AM</td><td>Make the website look better for the demo: add a finished-product frame, browse and compare, result polish, a real "confirmed" example and dark mode.</td>
-          <td><b>Frame:</b> a top navigation bar (Check, Browse, How it works, FAQ), a "Questions people ask" section, a footer with the four team members, a tab icon and a link-preview picture. <b>Browse and compare:</b> all 44 certificates as cards, filtered by field and sorted by market value, cost or name; tick two to see them side by side with the stronger cell in green. <b>Result polish:</b> a one-line verdict above the two panels, the score counts up while the ring fills, and the panels come in one after the other. <b>Dark mode:</b> a switch in the navigation; the choice is remembered. The new logic (<code>browseList</code>, <code>compareRows</code>, <code>verdictLine</code>) has 25 new tests, 174 in all. The README has three new screenshots. <b>Not added yet:</b> the real "Confirmed by the issuer" example, which needs a teammate's public Credly badge link.</td></tr>
+          <td><b>Frame:</b> a top navigation bar (Check, Browse, How it works, FAQ), a "Questions people ask" section, a footer with the four team members, a tab icon and a link-preview picture. <b>Browse and compare:</b> all 44 certificates as cards, filtered by field and sorted by market value, cost or name; tick two to see them side by side with the stronger cell in green. <b>Result polish:</b> a one-line verdict above the two panels, the score counts up while the ring fills, and the panels come in one after the other. <b>Dark mode:</b> a switch in the navigation; the choice is remembered. The new logic (<code>browseList</code>, <code>compareRows</code>, <code>verdictLine</code>) has 25 new tests, 174 in all. The README has three new screenshots.</td></tr>
+        <tr><td>5 Oct, ~5:00 AM</td><td>Check the live demo the way a visitor sees it, and remove unnecessary details from this log.</td>
+          <td>Opened the live demo and the repository in a fresh browser with no login: the navigation, browse, compare, verdict line, dark theme and FAQ all work, with no page errors. Found one thing to fix: on the online demo (which has no server) the "made-up ID" example showed a green result, because catching a made-up ID needs the live check. That example is now shown only when the server is running, and a green result for a Credly, Coursera or edX link on the online demo says plainly that only the link's website was checked. Removed the planning and to-do sections from this log.</td></tr>
       </table>
     </section>
 
@@ -280,49 +278,15 @@
     </section>
 
     <section class="box">
-      <h2>Round 1 presentation</h2>
-      <ul>
-        <li>6 slides in the organisers' template, SIH-deck style: Title · Idea · Technical approach · Feasibility · Impact · Research and references.</li>
-        <li>Every number has a reference [1]-[9]; the proof table with the exact source words is in the slide notes file.</li>
-      </ul>
-    </section>
-
-    <section class="box">
       <h2>Tech used</h2>
       <p>HTML, CSS, JavaScript (no framework, no backend) · jsQR for reading QR codes, pdf.js for reading PDFs, Tesseract.js for reading printed text and jsPDF for writing the report, all in the browser · a small Node.js API for the live check (Open Badges records from Credly) · the camera through getUserMedia · Node.js for tests and the refresh script · the Gemini API (free key) for the monthly refresh · GitHub Actions · GitHub Pages (₹0 server cost).</p>
-    </section>
-
-    <section class="box" id="round2">
-      <h2>Round 2 plan (we were selected)</h2>
-      <table>
-        <tr><th>What</th><th>What it adds</th><th>Tech</th><th>State</th></tr>
-        <tr><td>Live check with the issuer</td><td>Asks Credly / Coursera / edX whether the certificate exists; shows the badge name, issuer and dates; catches a made-up ID on a real site</td><td>Node.js API, Open Badges records</td><td><b>Built in this copy</b> (needs the server: <code>npm start</code>)</td></tr>
-        <tr><td>Read the text on a certificate (OCR)</td><td>Works when there is no QR code: finds the name, link or ID printed on the image</td><td>Tesseract.js</td><td><b>Built in this copy</b></td></tr>
-        <tr><td>Bulk / resume check</td><td>Placement cells check many certificates at once</td><td>pdf.js text reading, table export</td><td>Planned</td></tr>
-        <tr><td>Browse and compare</td><td>All certificates by field, sorted by market value; two side by side</td><td>JavaScript</td><td>Built (5 Oct)</td></tr>
-        <tr><td>First real data refresh</td><td>Live, quote-checked prices and salaries on the page</td><td>Gemini API (free key)</td><td>Built - needs the key</td></tr>
-        <tr><td>Tests on every push, container</td><td>Shows an engineering process</td><td>GitHub Actions, Docker</td><td><b>Written</b> - the container is untested (Docker was not running)</td></tr>
-        <tr><td>Publish version 2 with the API</td><td>The live check works online, not just on our laptop</td><td>Render or Railway (free tier)</td><td>Planned</td></tr>
-      </table>
-    </section>
-
-    <section class="box" id="next">
-      <h2>What's next</h2>
-      <ul>
-        <li>Round 2: submit the repository link (<a href="https://github.com/Purva9665/certwise-ctrlfreaks">github.com/Purva9665/certwise-ctrlfreaks</a>) on Unstop. The organisers will send the submission document format separately.</li>
-        <li>Add a free Gemini key as the <code>GEMINI_API_KEY</code> repository secret and run a small test refresh.</li>
-        <li>Record a 60-90 second backup video of the demo for Round 2 (5 Oct).</li>
-        <li>Try the camera scanner on a real phone.</li>
-        <li>Host the server (for example on Render or Railway) so the live check works online, then decide whether version 2 replaces the original.</li>
-        <li>Later: a bulk / resume check for placement cells; browse and compare; validity (expiry) check.</li>
-      </ul>
     </section>
 
   </main>
 
   <footer>
     <p>Team Ctrl Freaks · She Solves 3.0 · <a href="index.html">Back to CertWise</a></p>
-    <p class="small">Last updated 3 Oct 2026.</p>
+    <p class="small">Last updated 5 Oct 2026.</p>
   </footer>
 
 </body>

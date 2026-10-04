@@ -280,6 +280,10 @@ a.try, a.pick {
   padding: 5px 12px;
 }
 
+a.try.hidden {
+  display: none;
+}
+
 a.try:hover, a.pick:hover {
   border-color: var(--emerald);
   background-color: var(--hover);
