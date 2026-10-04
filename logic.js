@@ -629,6 +629,10 @@ function verdictLine(g, v) {
   let worth;
   if (g.verdict === "Fake university") worth = { level: "red", text: "No market value" };
   else if (g.level === "red") worth = { level: "red", text: "No market value if it is fake" };
+  else if (g.verdict === "Real, but a different certificate") {
+    // the issuer's record is for something else, so the score may not belong to this holder
+    worth = { level: "amber", text: v.band + " (" + v.percent + "%) - for the certificate you named" };
+  }
   else worth = { level: v.level, text: v.band + " (" + v.percent + "%)" };
   return { genuine: { level: g.level, text: g.verdict }, worth: worth };
 }

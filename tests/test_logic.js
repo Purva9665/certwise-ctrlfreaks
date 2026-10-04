@@ -201,6 +201,9 @@ line = L.verdictLine(anyG("", "no", "Commercial University Ltd., Daryaganj"), cv
 eq("verdict line: fake university", line.worth.text, "No market value");
 line = L.verdictLine(g("workshop", ""), mv("workshop"));
 eq("verdict line: genuine but low value", line.worth.text, "Low market value (0%)");
+line = L.verdictLine({ level: "amber", verdict: "Real, but a different certificate" }, mv("aws-ccp"));
+eq("verdict line: a different certificate - score is for the one named", line.worth.text, "High market value (100%) - for the certificate you named");
+eq("verdict line: a different certificate is amber", line.worth.level, "amber");
 
 // --- free refresh helpers (refresh/pages.js) ---
 const P = require("../refresh/pages.js");

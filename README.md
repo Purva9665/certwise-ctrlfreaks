@@ -5,9 +5,12 @@
 **She Solves 3.0 · Round 2 prototype · Team Ctrl Freaks**
 Track: Web & Software Development · Domain: Education
 
-**Live demo:** https://purva9665.github.io/certwise-ctrlfreaks/
-(The online demo runs everything except the *live check with the issuer*, which needs the small server in this
-repository. Run `npm start` to see the full prototype — it takes one command and no installed packages.)
+**Live demo (full version, with the live check):** https://certwise-ctrlfreaks.onrender.com/
+It runs on a free server that sleeps when nobody is using it, so the first visit can take about a minute to load.
+
+**Always-on copy:** https://purva9665.github.io/certwise-ctrlfreaks/ — everything except the *live check with the
+issuer*, which needs the small server in this repository. To run the full prototype yourself, `npm start` is
+enough: one command and no installed packages.
 
 ![CertWise home page](docs/screenshots/01-home.png)
 
@@ -121,7 +124,7 @@ What makes it different:
 - Typo-tolerant search ("aws cloud practitoner" still works).
 - Works on phones, with a **light and dark theme**; no login and no cost.
 - Navigation, a "Questions people ask" section and a link-preview image, so it reads like a finished product.
-- 174 automated tests, run on every push.
+- 176 automated tests, run on every push.
 
 ## Technologies / Tech Stack Used
 
@@ -138,9 +141,9 @@ What makes it different:
 | Core logic | Plain JavaScript in `logic.js` (edit distance, pattern matching, scoring) | The genuineness check and the market value score |
 | Data | JavaScript data files | 44 certificates, 17 verification methods, job data and UGC's list, with proof links |
 | Data refresh | Gemini API (free key), plus our own quote checker | Monthly update of prices, salaries and demand |
-| Testing | A plain Node.js test file (no test framework) | 174 tests of the logic and the API |
+| Testing | A plain Node.js test file (no test framework) | 176 tests of the logic and the API |
 | Automation | GitHub Actions | Runs the tests on every push; runs the monthly refresh |
-| Hosting | GitHub Pages (page), Dockerfile (server) | ₹0 hosting for the page; a container file for the server |
+| Hosting | Render (page + server), GitHub Pages (page only), Dockerfile | ₹0 hosting: the full version on Render's free plan and an always-on copy on GitHub Pages |
 
 The libraries are loaded from a CDN only when they are needed (for example, the text reader loads only when a
 file has no QR code), so the first page load stays small.
@@ -181,11 +184,13 @@ Then open http://localhost:5174 in your browser. To use another port, set the `P
 npm test
 ```
 
-174 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
+176 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
 
 **Other ways**
 
-- **Online:** https://purva9665.github.io/certwise-ctrlfreaks/ (no live check — a static host cannot run the server).
+- **Online, full version:** https://certwise-ctrlfreaks.onrender.com/ (the first load can take about a minute).
+- **Online, always-on copy:** https://purva9665.github.io/certwise-ctrlfreaks/ (no live check — a static host
+  cannot run the server).
 - **Without Node.js:** double-click `index.html`. Everything works except the live check and the camera, which
   need the server (or https).
 - **In a container:** `docker build -t certwise .` then `docker run -p 5174:5174 certwise`. The Dockerfile is
@@ -229,7 +234,7 @@ certwise-ctrlfreaks/
 │   ├── pages.js            Downloads the source pages
 │   └── verify.js           Keeps a fact only if its exact quote is on the page
 ├── tests/
-│   ├── test_logic.js       174 automated tests
+│   ├── test_logic.js       176 automated tests
 │   └── sample_*            Made-up certificates for trying the upload
 ├── docs/
 │   ├── og-image.png        The picture shown when the link is shared
@@ -306,7 +311,6 @@ on the student's answers.
 
 ## Future Scope / Enhancements
 
-- **Host the server online** so the live check with the issuer also works on the public website.
 - **Live checks for more issuers**, adding each one only after confirming how its public records work.
 - **Bulk and resume check** for placement cells: upload a resume or many certificates and get one table.
 - **Validity check:** show when a certificate expires and what must be renewed.

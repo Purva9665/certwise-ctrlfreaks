@@ -584,6 +584,8 @@ let checkNo = 0;         // so a slow answer for an old check can't overwrite a 
 
 // links the live check can ask an issuer about
 const LIVE_LINK = /credly\.com\/badges\/|coursera\.org\/verify\/|edx\.org\/certificates\//i;
+// the copy of CertWise that runs with the server (shown as a pointer on copies that have no server)
+const FULL_SITE = "https://certwise-ctrlfreaks.onrender.com/";
 
 function findApi() {
   if (!location.protocol.startsWith("http")) return;
@@ -591,7 +593,12 @@ function findApi() {
     .then(res => (res.ok ? res.json() : null))
     .then(info => {
       apiReady = !!(info && info.ok);
-      if (!apiReady) return;
+      if (!apiReady) {
+        // a copy without the server (for example GitHub Pages): point to the one that has it
+        $("apiInfo").innerHTML = "<span>The live check with the issuer is off on this copy. " +
+          "<a href='" + FULL_SITE + "'>Open the full version</a>.</span>";
+        return;
+      }
       $("apiInfo").textContent = "Live check with the issuer is on (Credly, Coursera, edX).";
       // examples that only make sense with the live check
       for (const a of document.querySelectorAll(".live-only")) a.classList.remove("hidden");
@@ -802,6 +809,10 @@ function valueHtml(cert, v, g) {
   html += "<div class='gauge-row'>" + gaugeHtml(v.percent, v.level) +
     "<div><div class='verdict " + v.level + "-text'>" + esc(v.band) + (fake ? " (if genuine)" : "") + "</div>" +
     "<div class='status-sub'>" + v.total + " of " + v.max + " points from 3 checks</div></div></div>";
+  if (g.verdict === "Real, but a different certificate") {
+    html += "<div class='warn'>" + icon("alert") + "<span>This score is for " + esc(cert.name) +
+      ". The issuer's record is for a different certificate, so it may not apply to this holder.</span></div>";
+  }
   if (v.warning) html += "<div class='warn'>" + icon("alert") + "<span>" + esc(v.warning) + "</span></div>";
 
   html += "<div class='checks'>";
