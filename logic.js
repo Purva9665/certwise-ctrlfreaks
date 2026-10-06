@@ -795,8 +795,61 @@ function recordCert(details, site, issuers, fieldWords, courseraSrc) {
   };
 }
 
+// ---------- 7. sharing a result, and the "what we can verify" table ----------
+
+// the part of a share link after the page address: "#check?name=RHCSA&link=140-123-456"
+// (kept after the # so the certificate's link is never sent to a web server when the page is opened)
+function shareHash(form) {
+  const parts = [];
+  for (const key of ["name", "link", "issuer"]) {
+    if (form[key]) parts.push(key + "=" + encodeURIComponent(form[key]));
+  }
+  return "#check" + (parts.length > 0 ? "?" + parts.join("&") : "");
+}
+
+// the other way round: what a share link asks us to check, or null when it asks for nothing
+function readShareHash(hash) {
+  const at = (hash || "").indexOf("?");
+  if (at < 0 || !/^#?check$/.test(hash.slice(0, at))) return null;
+  const form = { name: "", link: "", issuer: "" };
+  for (const pair of hash.slice(at + 1).split("&")) {
+    const cut = pair.indexOf("=");
+    const key = cut < 0 ? pair : pair.slice(0, cut);
+    if (!(key in form)) continue;
+    try {
+      form[key] = decodeURIComponent(cut < 0 ? "" : pair.slice(cut + 1)).slice(0, 500).trim();
+    } catch (e) {
+      form[key] = "";                      // a broken link: ignore that part
+    }
+  }
+  return form.name || form.link || form.issuer ? form : null;
+}
+
+// one line that says both answers, for a message
+function shareText(cert, g, v) {
+  const line = verdictLine(g, v);
+  return "CertWise check - " + cert.name + ". Genuine? " + line.genuine.text + ". Worth? " + line.worth.text + ".";
+}
+
+// what CertWise can do for each verification site: one row per site, straight from our data
+function coverRows(methods, liveSites, oneKindSites) {
+  const rows = [];
+  for (const key in methods) {
+    const m = methods[key];
+    if (m.domains.length === 0) continue;                 // "no public page" and "can't be verified" are not sites
+    const does = ["Official link"];
+    if (m.idRe) does.push("ID format");
+    if (liveSites.includes(key)) does.push("Asked live");
+    else if (m.domains.includes("credly.com")) does.push("Asked live for Credly links");   // their badges sit on Credly
+    if (oneKindSites.includes(key)) does.push("Named from the link");
+    rows.push({ key: key, name: m.name, sites: m.domains.slice(), does: does });
+  }
+  return rows;
+}
+
 if (typeof module !== "undefined") {
   module.exports = { normalize, editDistance, rankCerts, findCert, hostOf, looksLike, matchFakeUni,
+                     shareHash, readShareHash, shareText, coverRows, ONE_KIND_SITES,
                      checkFile, pickLink, checkGenuine, demandSources, marketValue, betterValue,
                      customCert, checkGenuineAny, findInText, sameCert, applyLive,
                      browseList, compareRows, verdictLine,

@@ -375,6 +375,35 @@ const confirmed = L.applyLive(anyG("https://www.credly.com/badges/" + UUID, "yes
   { supported: true, issuer: "credly", exists: true, details: { badgeName: "Member Badge", issuerName: "Oracle", issuedOn: "2025-01-01" } }, auto, CERTS, "2026-10-06");
 eq("record: the issuer's answer confirms it", confirmed.verdict, "Confirmed by the issuer");
 
+// --- sharing a result ---
+eq("share: a name and an ID", L.shareHash({ name: "RHCSA", link: "140-123-456", issuer: "" }), "#check?name=RHCSA&link=140-123-456");
+eq("share: a link alone", L.shareHash({ name: "", link: "https://coursera.org/verify/ABCD1234", issuer: "" }), "#check?link=https%3A%2F%2Fcoursera.org%2Fverify%2FABCD1234");
+eq("share: nothing to share", L.shareHash({ name: "", link: "", issuer: "" }), "#check");
+let shared = L.readShareHash("#check?name=AWS%20Certified%20Cloud%20Practitioner&link=https%3A%2F%2Fwww.credly.com%2Fbadges%2Fabc");
+eq("share: name read back", shared.name, "AWS Certified Cloud Practitioner");
+eq("share: link read back", shared.link, "https://www.credly.com/badges/abc");
+shared = L.readShareHash(L.shareHash({ name: "B.Tech degree", link: "", issuer: "Commercial University Ltd., Daryaganj" }));
+eq("share: there and back", shared.issuer, "Commercial University Ltd., Daryaganj");
+eq("share: a plain screen link asks for nothing", L.readShareHash("#check"), null);
+eq("share: another screen is not a check", L.readShareHash("#browse?name=RHCSA"), null);
+eq("share: unknown parts are ignored", L.readShareHash("#check?name=RHCSA&evil=1").name, "RHCSA");
+eq("share: a broken link does not crash", L.readShareHash("#check?name=%E0%A4%A&link=140-123-456").link, "140-123-456");
+eq("share: very long text is cut", L.readShareHash("#check?name=" + "a".repeat(900)).name.length, 500);
+eq("share: the message says both answers", L.shareText(cert("rhcsa"), g("rhcsa", "140-123-456"), mv("rhcsa")),
+   "CertWise check - Red Hat Certified System Administrator (RHCSA, EX200). Genuine? ID looks right - confirm it. Worth? High market value (100%).");
+
+// --- what we can verify ---
+const covers = L.coverRows(VERIFY_METHODS, ["credly", "coursera", "edx"], L.ONE_KIND_SITES);
+const cover = key => covers.find(x => x.key === key).does.join(", ");
+eq("covers: one row per verification site", covers.length, 17);
+eq("covers: Credly is asked live", cover("credly"), "Official link, Asked live");
+eq("covers: Red Hat has an ID format", cover("redhat"), "Official link, ID format");
+eq("covers: NPTEL is named from the link", cover("nptel"), "Official link, Named from the link");
+eq("covers: edX is asked live and named", cover("edx"), "Official link, Asked live, Named from the link");
+eq("covers: a site we only check the link for", cover("mslearn"), "Official link");
+eq("covers: an issuer whose badges sit on Credly", cover("comptia"), "Official link, Asked live for Credly links");
+eq("covers: 'can't be verified' is not a site", covers.some(x => x.key === "none" || x.key === "unknownpage"), false);
+
 (async () => {
   let live = await A.liveCheck("https://www.credly.com/badges/" + UUID, realCredly);
   eq("api: real badge exists", live.exists, true);

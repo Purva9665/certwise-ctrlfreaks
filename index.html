@@ -138,6 +138,33 @@
 
     <div id="result" class="view" data-view="check"></div>
 
+    <!-- shown under the checker until there is a result -->
+    <section class="home view" id="homeInfo" data-view="check">
+      <h2>How it works</h2>
+      <div class="trio">
+        <div class="tcard"><span class="num">1</span><b>Paste the link</b>
+          <span>The link, QR code or ID printed on the certificate. A photo or a PDF of it works too.</span></div>
+        <div class="tcard"><span class="num">2</span><b>We check it with the issuer</b>
+          <span>Is the link on the issuer's official site? For Credly, Coursera and edX we ask the issuer itself.</span></div>
+        <div class="tcard"><span class="num">3</span><b>You get two answers</b>
+          <span>Is it genuine, and what is it worth in the job market - with a source for every fact.</span></div>
+      </div>
+
+      <h2>Who it is for</h2>
+      <div class="trio">
+        <div class="tcard"><b>Students</b>
+          <span>Before paying for a course, or before putting a certificate on a resume.</span></div>
+        <div class="tcard"><b>Placement cells</b>
+          <span>Check the certificates students hand in, and keep the report.</span></div>
+        <div class="tcard"><b>Recruiters</b>
+          <span>See quickly whether a certificate's link is real and what the certificate proves.</span></div>
+      </div>
+
+      <h2>Works with</h2>
+      <div class="works" id="worksWith"></div>
+      <p class="small"><a href="#covers" data-go="how" data-at="covers">See everything we can verify</a></p>
+    </section>
+
     <section class="box view" id="browse" data-view="browse">
       <h2>Browse and compare</h2>
       <p class="small">Every certificate in our list, scored the same way. Pick a field, then tick two certificates to compare them side by side.</p>
@@ -204,6 +231,20 @@
       <p class="small" id="dataInfo"></p>
     </section>
 
+    <section class="box view" id="covers" data-view="how">
+      <h2>What we can verify</h2>
+      <p class="small">Every verification site we know, and what the check does for each. This table is drawn from the same data the checker uses.</p>
+      <div id="coverTable"></div>
+      <p class="small"><b>Official link</b> = the link is on the issuer's own verification site, and copy-cat sites are flagged.
+        <b>ID format</b> = the certificate ID is checked against the issuer's format.
+        <b>Asked live</b> = we ask the issuer whether the certificate exists, and read its name and issuer (needs the CertWise server).
+        <b>Named from the link</b> = the site hosts one kind of certificate, so the link alone tells us which one it is.</p>
+      <details class="more">
+        <summary>Issuers we recognise when a certificate is not in our list (<span id="issuerCount"></span>)</summary>
+        <div id="issuerList"></div>
+      </details>
+    </section>
+
     <section class="box view" id="faq" data-view="faq">
       <h2>Questions people ask</h2>
       <details class="faq">
@@ -232,6 +273,39 @@
       </details>
     </section>
 
+    <section class="box view" id="about" data-view="about">
+      <h2>About CertWise</h2>
+      <p>CertWise is a student project by Team Ctrl Freaks, built for She Solves 3.0 (PCCOE ACM-W) in the Education domain.
+        It answers two questions about any certificate: is it genuine, and what is it worth in the job market.
+        It is free, sells no courses and takes no commission.</p>
+      <p class="small">Team: Srushti Chaudhari (team leader), Sneha Ghule, Purva Kadam and Tanishka Kadu.</p>
+
+      <h3 id="privacy" class="sub">Privacy</h3>
+      <ul class="plain-list">
+        <li><b>Your certificate file never leaves your browser.</b> The photo or PDF is read on your own device.</li>
+        <li><b>For a live check, only the certificate's link is sent</b> to our server, which asks the issuer (Credly, Coursera or edX) about that certificate.</li>
+        <li><b>We take only facts about the certificate</b> from the issuer's record - its name, its issuer and how it is earned. We do not keep or show the holder's name.</li>
+        <li><b>Our server keeps no record of links.</b> Its log has only the time, the issuer and the answer. Your internet address is held in memory for one minute, only to limit how many checks one visitor can run.</li>
+        <li><b>Recent checks and your light / dark choice</b> are saved in your own browser only. "Clear" removes the recent checks.</li>
+        <li><b>No accounts, no cookies, no ads and no tracking.</b></li>
+        <li><b>A link made with "Share"</b> contains the certificate's name and link, so anyone you send it to can see them.</li>
+        <li><b>Other services:</b> the site is hosted on Render and GitHub Pages, and loads its reading tools (QR, PDF, text reader, report) from the public libraries jsDelivr and cdnjs. Those services see the usual request details, such as your internet address.</li>
+      </ul>
+
+      <h3 id="terms" class="sub">Terms of use</h3>
+      <ul class="plain-list">
+        <li>CertWise is a student project and a guide, <b>not an official verification service</b>. The issuer's own page always has the final word.</li>
+        <li>A green result means the link is checkable on the issuer's official site, or that the issuer has a record of it. Always confirm the holder's name on the issuer's page.</li>
+        <li>The market value score is our own estimate from three stated checks. It is not a job guarantee and not career advice.</li>
+        <li>Prices, salaries and demand come from the linked sources and can change. Open the source before you decide.</li>
+        <li>We are not connected to any issuer. Names such as AWS, Coursera and Credly belong to their owners and are used only to say what is being checked.</li>
+      </ul>
+
+      <h3 id="contact" class="sub">Contact</h3>
+      <p>Found a wrong fact, a missing issuer or a bug? <a href="https://github.com/Purva9665/certwise-ctrlfreaks/issues/new?title=Wrong%20fact%20or%20missing%20certificate" target="_blank" rel="noopener">Tell us on GitHub</a>.
+        The <a href="https://github.com/Purva9665/certwise-ctrlfreaks" target="_blank" rel="noopener">source code</a> is public.</p>
+    </section>
+
   </main>
 
   <footer>
@@ -246,7 +320,9 @@
       </div>
       <div class="foot-col">
         <p class="foot-title">More</p>
-        <p class="small"><a href="https://github.com/Purva9665/certwise-ctrlfreaks" target="_blank" rel="noopener">Source code on GitHub</a><br>
+        <p class="small"><a href="#about" data-go="about">About</a> · <a href="#privacy" data-go="about" data-at="privacy">Privacy</a> ·
+          <a href="#terms" data-go="about" data-at="terms">Terms</a> · <a href="#contact" data-go="about" data-at="contact">Contact</a><br>
+          <a href="https://github.com/Purva9665/certwise-ctrlfreaks" target="_blank" rel="noopener">Source code on GitHub</a><br>
           <a href="project-log.html">Project log - how we built this</a><br>
           <a href="https://github.com/Purva9665/certwise-ctrlfreaks/issues/new?title=Wrong%20fact%20or%20missing%20certificate" target="_blank" rel="noopener">Report a wrong fact or suggest a certificate</a></p>
       </div>

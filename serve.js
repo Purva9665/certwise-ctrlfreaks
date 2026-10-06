@@ -14,7 +14,7 @@ const ROOT = __dirname;
 const PORT = process.env.PORT || 5174;
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || "";     // set this if the page is hosted on another site
 const TYPES = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json",
-                ".png": "image/png", ".pdf": "application/pdf" };
+                ".png": "image/png", ".svg": "image/svg+xml", ".jpg": "image/jpeg", ".pdf": "application/pdf" };
 
 // at most 30 live checks a minute from one address, so nobody can use us to hammer the issuers
 const LIMIT = 30;

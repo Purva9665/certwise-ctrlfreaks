@@ -45,7 +45,11 @@ const ICONS = {
   columns: "<path d='M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18'/>",
   search: "<circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/>",
   clock: "<circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/>",
-  file: "<path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/>"
+  file: "<path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/>",
+  share: "<circle cx='18' cy='5' r='3'/><circle cx='6' cy='12' r='3'/><circle cx='18' cy='19' r='3'/><line x1='8.59' y1='13.51' x2='15.42' y2='17.49'/><line x1='15.41' y1='6.51' x2='8.59' y2='10.49'/>",
+  copy: "<rect x='9' y='9' width='13' height='13' rx='2' ry='2'/><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/>",
+  image: "<rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><circle cx='8.5' cy='8.5' r='1.5'/><polyline points='21 15 16 10 5 21'/>",
+  message: "<path d='M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z'/>"
 };
 
 function icon(name) {
@@ -141,6 +145,7 @@ function setup() {
   setupBrowse();
 
   // the navigation opens a view, like the screens of an app
+  showCovers();
   setupViews();
   showRecent();
 
@@ -157,27 +162,76 @@ function setup() {
 
 // ---------- views: the page works like an app with four screens ----------
 
-const VIEWS = ["check", "browse", "how", "faq"];
+const VIEWS = ["check", "browse", "how", "faq", "about"];
+// places inside a screen that have their own address: "#privacy" opens the About screen at "Privacy"
+const PLACES = { covers: "how", privacy: "about", terms: "about", contact: "about" };
 
+// name = a screen, or a place inside one; remember = also show it in the address bar
 function setView(name, remember) {
+  const place = PLACES[name] ? name : "";
+  if (place) name = PLACES[place];
   if (!VIEWS.includes(name)) name = "check";
   if (document.body.dataset.view !== name) {
     document.body.dataset.view = name;
     window.scrollTo(0, 0);
   }
   for (const a of document.querySelectorAll(".nav-links a[data-go]")) a.classList.toggle("on", a.dataset.go === name);
-  if (remember && location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  if (place) $(place).scrollIntoView({ behavior: calm() ? "auto" : "smooth", block: "start" });
+  const hash = "#" + (place || name);
+  if (remember && location.hash !== hash) history.replaceState(null, "", hash);
 }
 
 function setupViews() {
   for (const a of document.querySelectorAll("[data-go]")) {
     a.addEventListener("click", e => {
       e.preventDefault();
-      setView(a.dataset.go, true);
+      setView(a.dataset.at || a.dataset.go, true);
     });
   }
-  window.addEventListener("hashchange", () => setView(location.hash.slice(1), false));
-  setView(location.hash.slice(1), false);
+  window.addEventListener("hashchange", openHash);
+  openHash();
+}
+
+// the address can name a screen ("#browse"), a place ("#privacy") or a shared check ("#check?link=...")
+function openHash() {
+  const shared = readShareHash(location.hash);
+  if (!shared) {
+    setView(location.hash.slice(1), false);
+    return;
+  }
+  // a shared result is never shown as it was: the same check is run again, here and now
+  $("certInput").value = shared.name || shared.link;
+  $("linkInput").value = shared.name ? shared.link : "";
+  $("issuerInput").value = shared.issuer;
+  $("moreBox").open = $("linkInput").value !== "" || shared.issuer !== "";
+  showDetect();
+  runCheck(true);
+}
+
+// ---------- what we can verify (drawn from the same data the checker uses) ----------
+
+function showCovers() {
+  const rows = coverRows(VERIFY_METHODS, ["credly", "coursera", "edx"], ONE_KIND_SITES);
+  let html = "<table class='covers'><tr><th>Certificates from</th><th>Official site</th><th>What the check does</th></tr>";
+  for (const r of rows) {
+    html += "<tr><td>" + esc(r.name) + "</td><td>" + esc(r.sites.join(", ")) + "</td><td>" +
+      r.does.map(d => "<span class='tag" + (d.startsWith("Asked live") ? " live" : "") + "'>" + esc(d) + "</span>").join(" ") + "</td></tr>";
+  }
+  html += "<tr><td>Any other certificate with a link</td><td>-</td><td>Copy-cat sites are flagged; scored from three quick answers</td></tr>" +
+    "<tr><td>Workshop, participation or paid \"internship\" certificates</td><td>-</td>" +
+    "<td>No official record exists, so the result says \"Can't be verified\"</td></tr></table>";
+  $("coverTable").innerHTML = html;
+
+  const kinds = [["vendor", "Companies and bodies that own their field"], ["academic", "IIT / IISc"],
+                 ["platform", "Learning platforms and programmes"]];
+  $("issuerCount").textContent = KNOWN_ISSUERS.length;
+  $("issuerList").innerHTML = kinds.map(k => "<p class='small'><b>" + k[1] + "</b></p><div class='works'>" +
+    KNOWN_ISSUERS.filter(i => i.type === k[0]).map(i => "<span class='skill'>" + esc(i.name) + "</span>").join("") + "</div>").join("");
+
+  // "works with" under the checker: the name of each verification site, without the kind of link
+  const kind = / (digital badge|digital credential|share link|verify link|QR code|certification ID|verification code|member verification|ASPEN verify|verify|CertView \/ Credly|certificate link|certification link|certificate verification)$/i;
+  $("worksWith").innerHTML = rows.map(r => "<span class='skill'>" + esc(r.name.replace(kind, "")) + "</span>").join("") +
+    "<span class='skill'>+ " + KNOWN_ISSUERS.length + " recognised issuers</span>";
 }
 
 // ---------- small things that make the page feel alive ----------
@@ -950,6 +1004,7 @@ function showResult() {
   if (last.cert.custom) $("customResult").innerHTML = html;
   else $("result").innerHTML = "<section class='box result'>" + html + "</section>";
   $("reportBtn").addEventListener("click", downloadReport);
+  if ($("shareBtn")) $("shareBtn").addEventListener("click", toggleShare);
   if ($("useRecord")) {
     // the record is for another certificate: check that one, straight from the link
     $("useRecord").addEventListener("click", e => {
@@ -1076,7 +1131,10 @@ function waitingHtml(link) {
 function resultHtml(cert, g, v) {
   return "<div class='result-head'><div class='tile'>" + icon("award") + "</div>" +
     "<div class='grow'><h3>" + esc(cert.name) + "</h3><div class='small'>Issued by " + esc(cert.issuer) + "</div></div>" +
-    "<button id='reportBtn' class='ghost'>" + icon("download") + " Download report</button></div>" +
+    "<div class='head-actions'>" +
+    (cert.custom ? "" : "<button id='shareBtn' class='ghost' type='button' aria-expanded='false'>" + icon("share") + " Share</button>") +
+    "<button id='reportBtn' class='ghost'>" + icon("download") + " Download report</button></div></div>" +
+    (cert.custom ? "" : "<div id='shareBox' class='sharebox hidden'></div>") +
     (cert.custom ? "<div class='warn'>" + icon("edit") + "<span>This certificate is not in our list, so it is scored from " +
       "<b>your answers</b>. We could not check those facts ourselves.</span></div>" : "") +
     (cert.record ? "<div class='info'>" + icon("check") + "<span>This certificate is not in our list. We read it from <b>" +
@@ -1352,6 +1410,181 @@ function wirePicks() {
       runCheck(true);
     });
   }
+}
+
+// ---------- share a result ----------
+
+// the address that runs this same check again for whoever opens it
+function shareUrl() {
+  return location.href.split("#")[0] + shareHash({ name: last.typed || "", link: last.input.link, issuer: last.input.issuer });
+}
+
+function toggleShare() {
+  const box = $("shareBox");
+  const opening = box.classList.contains("hidden");
+  box.classList.toggle("hidden", !opening);
+  $("shareBtn").setAttribute("aria-expanded", opening ? "true" : "false");
+  if (!opening) return;
+  const url = shareUrl();
+  const text = shareText(last.cert, last.g, last.v) + " Check it yourself: " + url;
+  box.innerHTML = "<div class='share-row'><button type='button' id='shareCopy' class='ghost'>" + icon("copy") + " Copy link</button>" +
+    "<a class='ghost' id='shareWa' href='https://wa.me/?text=" + encodeURIComponent(text) + "' target='_blank' rel='noopener'>" +
+    icon("message") + " WhatsApp</a>" +
+    "<button type='button' id='shareCard' class='ghost'>" + icon("image") + " Save as a picture</button></div>" +
+    "<input id='shareLink' type='text' class='plain hidden' readonly aria-label='Link to this check'>" +
+    "<p class='small'>Whoever opens the link sees the check run again, live - not a copy of this result. " +
+    "The link contains the certificate's link, so send it only to people who should see it.</p>";
+  $("shareCopy").addEventListener("click", () => copyLink(url));
+  $("shareCard").addEventListener("click", saveCard);
+}
+
+function copyLink(url) {
+  const done = () => toast("Link copied");
+  const byHand = () => {
+    // copying is blocked here: show the link, selected, so it can be copied by hand
+    const field = $("shareLink");
+    field.value = url;
+    field.classList.remove("hidden");
+    field.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    if (ok) done(); else toast("Press Ctrl+C to copy the link");
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(url).then(done, byHand);
+  else byHand();
+}
+
+const CARD_INK = { green: "#1b7f3b", amber: "#946200", red: "#b3261e", grey: "#475569" };
+const CARD_TINT = { green: "#e3f4e8", amber: "#fff4d9", red: "#fde7e5", grey: "#eef1f5" };
+
+function roundBox(pen, x, y, w, h, r) {
+  pen.beginPath();
+  pen.moveTo(x + r, y);
+  pen.arcTo(x + w, y, x + w, y + h, r);
+  pen.arcTo(x + w, y + h, x, y + h, r);
+  pen.arcTo(x, y + h, x, y, r);
+  pen.arcTo(x, y, x + w, y, r);
+  pen.closePath();
+}
+
+// break text into lines no wider than max (using the pen's current font)
+function wrapLines(pen, text, max) {
+  const lines = [];
+  let line = "";
+  for (const word of String(text).split(/\s+/)) {
+    const next = line === "" ? word : line + " " + word;
+    if (pen.measureText(next).width > max && line !== "") {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line !== "") lines.push(line);
+  return lines;
+}
+
+// cut text with "..." so it fits in max
+function fitText(pen, text, max) {
+  let out = String(text);
+  while (out.length > 3 && pen.measureText(out).width > max) out = out.slice(0, -4) + "...";
+  return out;
+}
+
+// a picture of the newest result, 1200 x 630, drawn in the browser
+function resultCard() {
+  const line = verdictLine(last.g, last.v);
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 630;
+  const pen = canvas.getContext("2d");
+  const sans = "'Segoe UI', Arial, sans-serif";
+  const serif = "Georgia, 'Times New Roman', serif";
+
+  // green background and a white card
+  const back = pen.createLinearGradient(0, 0, 1200, 630);
+  back.addColorStop(0, "#0f2f24");
+  back.addColorStop(0.55, "#1d4a3a");
+  back.addColorStop(1, "#2e6d5d");
+  pen.fillStyle = back;
+  pen.fillRect(0, 0, 1200, 630);
+  roundBox(pen, 48, 48, 1104, 534, 28);
+  pen.fillStyle = "#ffffff";
+  pen.fill();
+
+  // the name of the site, with its tick
+  roundBox(pen, 92, 86, 58, 58, 14);
+  pen.fillStyle = "#b8892e";
+  pen.fill();
+  pen.strokeStyle = "#ffffff";
+  pen.lineWidth = 6;
+  pen.lineCap = "round";
+  pen.lineJoin = "round";
+  pen.beginPath();
+  pen.moveTo(108, 116);
+  pen.lineTo(118, 127);
+  pen.lineTo(135, 104);
+  pen.stroke();
+  pen.fillStyle = "#0f2f24";
+  pen.font = "bold 40px " + serif;
+  pen.fillText("CertWise", 166, 130);
+  pen.fillStyle = "#5b6b63";
+  pen.font = "22px " + sans;
+  pen.textAlign = "right";
+  pen.fillText("Checked on " + new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }), 1108, 126);
+  pen.textAlign = "left";
+
+  // the certificate (two lines at most) and who issued it
+  pen.fillStyle = "#16241e";
+  pen.font = "bold 48px " + serif;
+  const name = wrapLines(pen, last.cert.name, 1016);
+  if (name.length > 2) name[1] = fitText(pen, name[1] + " " + name.slice(2).join(" "), 1016);
+  let y = 222;
+  for (const part of name.slice(0, 2)) {
+    pen.fillText(part, 92, y);
+    y += 58;
+  }
+  pen.fillStyle = "#5b6b63";
+  pen.font = "26px " + sans;
+  pen.fillText(fitText(pen, "Issued by " + last.cert.issuer, 1016), 92, y - 8);
+
+  // the two answers
+  const answer = (top, ask, side) => {
+    roundBox(pen, 92, top, 1016, 70, 35);
+    pen.fillStyle = CARD_TINT[side.level];
+    pen.fill();
+    pen.fillStyle = "#5b6b63";
+    pen.font = "bold 20px " + sans;
+    pen.fillText(ask, 122, top + 44);
+    pen.fillStyle = CARD_INK[side.level];
+    pen.font = "bold 30px " + sans;
+    pen.fillText(fitText(pen, side.text, 800), 262, top + 46);
+  };
+  answer(356, "GENUINE?", line.genuine);
+  answer(440, "WORTH?", line.worth);
+
+  pen.fillStyle = "#5b6b63";
+  pen.font = "21px " + sans;
+  pen.fillText(fitText(pen, "Run this check yourself at " + location.host + location.pathname, 1016), 92, 552);
+  return canvas;
+}
+
+function saveCard() {
+  const name = last.cert.name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 40);
+  resultCard().toBlob(blob => {
+    if (!blob) {
+      toast("Could not make the picture");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "CertWise-result-" + name + ".png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast("Picture saved");
+  }, "image/png");
 }
 
 // ---------- download the result as a PDF report ----------

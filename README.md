@@ -135,11 +135,16 @@ What makes it different:
 
 - **44 certificates** with hand-checked facts (price, exam type, eligibility), each with a proof link.
 - **Downloadable PDF report** of every result, with clickable proof links.
+- **Share a result:** a link that runs the same check again for whoever opens it (never a copy of the
+  result), a ready WhatsApp message, and the result saved as a picture.
 - **Works like an app:** four screens (Check, Browse, How it works, FAQ), suggestions while you type, a
   progress card while the issuer is asked, your recent checks, and short messages for what just happened.
+- **What we can verify:** one table of every verification site and what the check does for each, drawn from
+  the same data the checker uses.
+- **About, Privacy, Terms and Contact**, with a privacy section that says exactly what is sent and what is kept.
 - Typo-tolerant search ("aws cloud practitoner" still works).
 - Works on phones, with a **light and dark theme**; no login and no cost.
-- 248 automated tests, run on every push.
+- 268 automated tests, run on every push.
 
 ## Technologies / Tech Stack Used
 
@@ -150,13 +155,13 @@ What makes it different:
 | PDF reading | [pdf.js](https://mozilla.github.io/pdf.js/) 3.11.174 | Reads links and text inside an uploaded PDF |
 | Text reader | [Tesseract.js](https://tesseract.projectnaptha.com/) 5 | OCR for images and scanned PDFs that have no QR code |
 | PDF report | [jsPDF](https://github.com/parallax/jsPDF) 2.5.1 | Writes the downloadable report |
-| Browser APIs | File API, Canvas, `getUserMedia`, `localStorage` | Upload, image handling, the camera scanner, and remembering the theme and your recent checks |
+| Browser APIs | File API, Canvas, `getUserMedia`, `localStorage`, Clipboard | Upload, image handling, the camera scanner, the result picture, copying a share link, and remembering the theme and your recent checks |
 | Backend | Node.js (built-in `http` module, no framework) | Serves the page and the small API (`/api/health`, `/api/live`) |
 | Issuer records | Credly Open Badges 2.0 records; Coursera and edX certificate pages | The live check with the issuer, and the name, issuer and earning criteria of any certificate |
 | Core logic | Plain JavaScript in `logic.js` (edit distance, pattern matching, scoring) | The genuineness check, the market value score, and scoring a certificate from the issuer's record |
 | Data | JavaScript data files | 44 certificates, 17 verification methods, 71 recognised issuers, job data and UGC's list, with proof links |
 | Data refresh | Gemini API (free key), plus our own quote checker | Monthly update of prices, salaries and demand |
-| Testing | A plain Node.js test file (no test framework) | 248 tests of the logic and the API |
+| Testing | A plain Node.js test file (no test framework) | 268 tests of the logic and the API |
 | Automation | GitHub Actions | Runs the tests on every push; runs the monthly refresh |
 | Hosting | Render (page + server), GitHub Pages (page only), Dockerfile | ₹0 hosting: the full version on Render's free plan and an always-on copy on GitHub Pages |
 
@@ -199,7 +204,7 @@ Then open http://localhost:5174 in your browser. To use another port, set the `P
 npm test
 ```
 
-248 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
+268 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
 
 **Other ways**
 
@@ -251,7 +256,7 @@ certwise-ctrlfreaks/
 │   ├── pages.js            Downloads the source pages
 │   └── verify.js           Keeps a fact only if its exact quote is on the page
 ├── tests/
-│   ├── test_logic.js       248 automated tests
+│   ├── test_logic.js       268 automated tests
 │   └── sample_*            Made-up certificates for trying the upload
 ├── docs/
 │   ├── og-image.png        The picture shown when the link is shared
@@ -320,7 +325,15 @@ record; the certificate is not in our list.
 
 ![Suggestions while typing](docs/screenshots/13-suggestions.png)
 
-**13. On a phone**
+**13. Share a result** — the link runs the check again for whoever opens it.
+
+![Sharing a result](docs/screenshots/15-share.png)
+
+**14. What we can verify** — every verification site and what the check does for each.
+
+![What we can verify](docs/screenshots/16-what-we-verify.png)
+
+**15. On a phone**
 
 <img src="docs/screenshots/09-phone.png" alt="CertWise on a phone" width="300">
 
@@ -434,7 +447,8 @@ With `npm start` running:
 7. **One not in our list**, with no link → answer the 3 questions → a score marked as based on your answers.
 8. **Browse** → pick *Data Analyst* → tick *PL-300* and *Google Data Analytics* → the side-by-side table shows
    why one scores 100% and the other 67%.
-9. **Download report** on any result. Switch the **dark theme** from the top bar. On a phone: **Scan the QR code
+9. **Share** a result → copy the link and open it in a new tab: the check runs again there.
+10. **Download report** on any result. Switch the **dark theme** from the top bar. On a phone: **Scan the QR code
    with your camera**.
 
 ## Questions and answers
@@ -450,6 +464,9 @@ With `npm start` running:
 - **Why is a genuine certificate scored low?** Genuine is not the same as valuable: a real ₹9 workshop
   certificate has no exam and no recognised issuer.
 - **Is the upload safe?** The file never leaves the browser. Only the certificate's link is sent for a live check.
+  The Privacy section on the site lists exactly what is sent and what is kept.
+- **Can a shared result be faked?** A share link holds only what to check, not the answer. Opening it runs the
+  check again, live.
 - **Who pays?** It is free for students. Placement cells could fund the hosting. We take no commission from
   course sellers.
 
