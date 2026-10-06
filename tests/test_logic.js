@@ -295,6 +295,27 @@ eq("kind: node.js is a name", L.kindOfText("node.js", VERIFY_METHODS), "name");
 eq("kind: az-900 is a name", L.kindOfText("az-900", VERIFY_METHODS), "name");
 eq("kind: empty", L.kindOfText("  ", VERIFY_METHODS), "empty");
 
+// --- a QR code that is not a certificate's (a payment code, a phone number...) ---
+const UPI = "upi://pay?pa=someone@okaxis&pn=Some%20Name&am=100&cu=INR";
+eq("other: a UPI payment code", L.otherCode(UPI), "a UPI payment code");
+eq("other: UPI in capitals, with spaces round it", L.otherCode("  UPI://pay?pa=a@b "), "a UPI payment code");
+eq("other: a shop payment code", L.otherCode("00020101021126580010A000000677010111"), "a payment code");
+eq("other: a phone number", L.otherCode("tel:+919999999999"), "a phone number");
+eq("other: Wi-Fi details", L.otherCode("WIFI:S:home;T:WPA;P:secret;;"), "Wi-Fi details");
+eq("other: a contact card", L.otherCode("BEGIN:VCARD\nVERSION:3.0"), "a contact card");
+eq("other: an email address", L.otherCode("mailto:someone@example.com"), "an email address");
+eq("other: a real link is not one", L.otherCode("https://www.credly.com/badges/abc"), "");
+eq("other: a Red Hat ID is not one", L.otherCode("140-123-456"), "");
+eq("other: a name is not one", L.otherCode("Red Hat"), "");
+eq("other: nothing", L.otherCode(""), "");
+eq("other: a UPI code is not taken as a link or ID", L.kindOfText(UPI, VERIFY_METHODS), "name");
+eq("other: UPI code given as the link of a listed certificate", g("rhcsa", UPI).verdict, "Not a certificate link");
+eq("other: ...is amber, with no page to open", g("rhcsa", UPI).level + "/" + g("rhcsa", UPI).page, "amber/null");
+eq("other: ...and the reason says what it is", g("rhcsa", UPI).reasons[0].includes("a UPI payment code"), true);
+eq("other: UPI code given for a certificate not in our list", anyG(UPI, "yes").verdict, "Not a certificate link");
+eq("other: a fake university is still caught first", anyG(UPI, "yes", "Commercial University Ltd., Daryaganj").verdict, "Fake university");
+eq("other: a real Red Hat ID still works", g("rhcsa", "140-123-456").verdict, "ID looks right - confirm it");
+
 const ki = (name, text) => { const k = L.knownIssuer(name, text || "", KNOWN_ISSUERS); return k ? k.name + ":" + k.type : null; };
 eq("issuer: AWS", ki("Amazon Web Services Training and Certification"), "Amazon Web Services:vendor");
 eq("issuer: Cisco", ki("Cisco"), "Cisco:vendor");

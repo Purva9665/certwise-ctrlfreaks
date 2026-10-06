@@ -109,6 +109,39 @@ function hostOf(link) {
   }
 }
 
+// a QR code (or a pasted line) can hold anything. These are the common things that are NOT a certificate's link or ID.
+const OTHER_CODES = [
+  [/^upi:\/\//i, "a UPI payment code"],
+  [/^(paytmmp|paytm|phonepe|gpay|tez|bhim):\/\//i, "a payment code"],
+  [/^000201\d{6,}/, "a payment code"],                 // Bharat QR and other shop payment codes start like this
+  [/^(bitcoin|ethereum):/i, "a payment code"],
+  [/^tel:/i, "a phone number"],
+  [/^(sms|smsto):/i, "a text message"],
+  [/^(mailto:|matmsg:)/i, "an email address"],
+  [/^wifi:/i, "Wi-Fi details"],
+  [/^(begin:vcard|mecard:)/i, "a contact card"],
+  [/^geo:/i, "a map location"]
+];
+
+// "upi://pay?pa=..." -> "a UPI payment code"; returns "" when the text is none of these
+function otherCode(text) {
+  const t = (text || "").trim();
+  for (const pair of OTHER_CODES) {
+    if (pair[0].test(t)) return pair[1];
+  }
+  return "";
+}
+
+// the "link" that was given is a payment code, a phone number...: it says nothing about a certificate
+function notCertLink(result, what) {
+  result.level = "amber";
+  result.verdict = "Not a certificate link";
+  result.reasons.push("What was given as the link is " + what + ", not a verification link or ID. It can't show whether a certificate is genuine.");
+  result.reasons.push("Use the link or ID printed on the certificate itself.");
+  result.page = null;
+  return result;
+}
+
 function pathOf(link) {
   let text = link.trim();
   if (!/^https?:\/\//i.test(text)) text = "https://" + text;
@@ -325,6 +358,7 @@ function checkGenuine(cert, input, methods, certVerify, fakeUnis) {
     result.reasons.push("Paste the verification link or ID from the certificate. " + method.how);
     return result;
   }
+  if (otherCode(text)) return notCertLink(result, otherCode(text));
 
   // c) a web link
   const host = hostOf(text);
@@ -530,6 +564,7 @@ function checkGenuineAny(input, hasLink, methods, fakeUnis) {
     }
     return result;
   }
+  if (otherCode(text)) return notCertLink(result, otherCode(text));
 
   const host = hostOf(text);
   if (!host) {
@@ -848,7 +883,7 @@ function coverRows(methods, liveSites, oneKindSites) {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { normalize, editDistance, rankCerts, findCert, hostOf, looksLike, matchFakeUni,
+  module.exports = { normalize, editDistance, rankCerts, findCert, hostOf, otherCode, looksLike, matchFakeUni,
                      shareHash, readShareHash, shareText, coverRows, ONE_KIND_SITES,
                      checkFile, pickLink, checkGenuine, demandSources, marketValue, betterValue,
                      customCert, checkGenuineAny, findInText, sameCert, applyLive,

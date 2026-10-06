@@ -390,7 +390,7 @@ function hideSuggest() {
 function showDetect() {
   const typed = $("certInput").value.trim();
   const kind = kindOfText(typed, VERIFY_METHODS);
-  const inBox = kind === "link" || kind === "id";
+  const inBox = kind === "link" || kind === "id" || otherCode(typed) !== "";
   describeLink(inBox ? typed : "", $("detect"));
   describeLink(inBox ? "" : $("linkInput").value.trim(), $("detectLink"));
 }
@@ -398,6 +398,10 @@ function showDetect() {
 function describeLink(link, box) {
   if (link === "") {
     box.innerHTML = "";
+    return;
+  }
+  if (otherCode(link)) {
+    box.innerHTML = "<span class='detect-chip amber'>" + icon(LEVEL_ICON.amber) + esc("This is " + otherCode(link) + ", not a certificate link or ID") + "</span>";
     return;
   }
   const g = checkGenuineAny({ link: link, issuer: "" }, "yes", VERIFY_METHODS, FAKE_UNIS);
@@ -656,6 +660,25 @@ function useLink(link, note) {
   runCheck(true);
 }
 
+// a QR code was read. Only a link or an ID (or text that names the certificate) is any use to us.
+// returns "" when it was used; otherwise what the code holds ("a UPI payment code", "plain text") - nothing is filled in then
+function useQr(text, note) {
+  const kind = kindOfText(text, VERIFY_METHODS);
+  if (kind === "link" || kind === "id") {
+    useLink(text.trim(), note);
+    return "";
+  }
+  if (otherCode(text)) return otherCode(text);
+  return fillFrom(findInText(text, CERTS, FAKE_UNIS, VERIFY_METHODS), null, "QR code") ? "" : "plain text";
+}
+
+// the QR code was not a certificate's: say what it was, and leave the form alone
+function wrongQr(what) {
+  fileNote("That QR code holds " + what + ", not a certificate's link or ID, so nothing was filled in. " +
+    "Use the QR code printed on the certificate.", true);
+  toast("Not a certificate's QR code - it holds " + what);
+}
+
 // fill the form from what we could read on the certificate.
 // found = result of findInText() (logic.js); qrLink = the link from a QR code, if there was one
 // returns false when nothing useful was found
@@ -709,15 +732,15 @@ async function textIn(canvas) {
 }
 
 // no QR code: read the text instead and look for the name, a link or an ID
-async function readWords(canvas, where) {
-  fileNote("No QR code - reading the text on the " + where + " (this takes a few seconds)...");
+async function readWords(canvas, where, qrNoUse) {
+  fileNote((qrNoUse ? "The QR code holds no link or ID" : "No QR code") + " - reading the text on the " + where + " (this takes a few seconds)...");
   try {
     const found = findInText(await textIn(canvas), CERTS, FAKE_UNIS, VERIFY_METHODS);
     if (!fillFrom(found, null, where)) {
       fileNote("We read the " + where + " but found no link, ID or certificate name we know. Type them in instead.", true);
     }
   } catch (e) {
-    fileNote("No QR code found, and the text reader didn't load (it needs internet). Type the link instead.", true);
+    fileNote("No usable QR code, and the text reader didn't load (it needs internet). Type the link instead.", true);
   }
 }
 
@@ -739,10 +762,11 @@ function readImage(file) {
     canvas.width = Math.round(img.width * scale);
     canvas.height = Math.round(img.height * scale);
     canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-    const link = qrIn(canvas);
+    const code = qrIn(canvas);
     URL.revokeObjectURL(url);
-    if (link) useLink(link, "QR code read - the link is filled in above.");
-    else readWords(canvas, "image");
+    const held = code ? useQr(code, "QR code read - the link is filled in above.") : "none";
+    if (held === "none" || held === "plain text") readWords(canvas, "image", held === "plain text");
+    else if (held !== "") wrongQr(held);
   };
   img.onerror = () => {
     URL.revokeObjectURL(url);
@@ -811,9 +835,19 @@ async function readPdf(file) {
       qr = qrIn(canvas);
     }
 
+    // a QR code that is not a link or an ID is not used as one: a payment code is refused, plain text is read as text
+    let wrong = "";
+    if (qr && !["link", "id"].includes(kindOfText(qr, VERIFY_METHODS))) {
+      wrong = otherCode(qr);
+      if (!wrong) words += " " + qr;
+      qr = null;
+    }
+
     const found = findInText(words, CERTS, FAKE_UNIS, VERIFY_METHODS);
     if (fillFrom(found, qr, "PDF")) return;
-    if (words.trim().length < 20 && firstPage) {
+    if (wrong) {
+      wrongQr(wrong);
+    } else if (words.trim().length < 20 && firstPage) {
       await readWords(firstPage, "PDF");          // a scanned PDF: no text inside, so read the picture
     } else {
       fileNote("No QR code, link or ID found in this PDF. Type the link or ID printed on the certificate instead.", true);
@@ -855,10 +889,11 @@ function scanFrame() {
   canvas.width = Math.round(video.videoWidth * scale);
   canvas.height = Math.round(video.videoHeight * scale);
   canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-  const link = qrIn(canvas);
-  if (link) {
+  const code = qrIn(canvas);
+  if (code) {
     stopCamera();
-    useLink(link, "QR code scanned with the camera - the link is filled in above.");
+    const held = useQr(code, "QR code scanned with the camera - the link is filled in above.");
+    if (held !== "") wrongQr(held);
   }
 }
 
@@ -887,6 +922,14 @@ function runCheck(scroll) {
 
   if (form.name === "" && form.link === "" && form.issuer === "") {
     out.innerHTML = "<section class='box result'><p>Paste the certificate's link or ID, or type its name.</p></section>";
+    return;
+  }
+
+  // a payment code, a phone number... in the big box (the wrong QR code was scanned, or it was pasted)
+  if (otherCode(form.name)) {
+    out.innerHTML = "<section class='box result'><p><b>That is " + esc(otherCode(form.name)) + ", not a certificate.</b> " +
+      "It can't show whether a certificate is genuine. Paste the link or ID printed on the certificate, or type its name.</p></section>";
+    if (scroll) scrollToResult();
     return;
   }
 

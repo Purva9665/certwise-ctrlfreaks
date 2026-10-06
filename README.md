@@ -126,7 +126,8 @@ What makes it different:
 
 **Getting the details off a certificate**
 
-- **Upload** a PNG, JPG, WEBP or PDF (up to 5 MB): the QR code or link is read automatically.
+- **Upload** a PNG, JPG, WEBP or PDF (up to 5 MB): the QR code or link is read automatically. A QR code that is
+  not a certificate's (a UPI payment code, a phone number, Wi-Fi details) is refused and named, not used as a link.
 - **Text reader (OCR)** for certificates with no QR code: finds the certificate's name, link, ID and college.
 - **Camera scan** of the QR code on a phone.
 - Files are read inside the browser and are **never uploaded**.
@@ -144,7 +145,7 @@ What makes it different:
 - **About, Privacy, Terms and Contact**, with a privacy section that says exactly what is sent and what is kept.
 - Typo-tolerant search ("aws cloud practitoner" still works).
 - Works on phones, with a **light and dark theme**; no login and no cost.
-- 268 automated tests, run on every push.
+- 286 automated tests, run on every push.
 
 ## Technologies / Tech Stack Used
 
@@ -161,7 +162,7 @@ What makes it different:
 | Core logic | Plain JavaScript in `logic.js` (edit distance, pattern matching, scoring) | The genuineness check, the market value score, and scoring a certificate from the issuer's record |
 | Data | JavaScript data files | 44 certificates, 17 verification methods, 71 recognised issuers, job data and UGC's list, with proof links |
 | Data refresh | Gemini API (free key), plus our own quote checker | Monthly update of prices, salaries and demand |
-| Testing | A plain Node.js test file (no test framework) | 268 tests of the logic and the API |
+| Testing | A plain Node.js test file (no test framework) | 286 tests of the logic and the API |
 | Automation | GitHub Actions | Runs the tests on every push; runs the monthly refresh |
 | Hosting | Render (page + server), GitHub Pages (page only), Dockerfile | ₹0 hosting: the full version on Render's free plan and an always-on copy on GitHub Pages |
 
@@ -204,7 +205,7 @@ Then open http://localhost:5174 in your browser. To use another port, set the `P
 npm test
 ```
 
-268 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
+286 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
 
 **Other ways**
 
@@ -256,7 +257,7 @@ certwise-ctrlfreaks/
 │   ├── pages.js            Downloads the source pages
 │   └── verify.js           Keeps a fact only if its exact quote is on the page
 ├── tests/
-│   ├── test_logic.js       268 automated tests
+│   ├── test_logic.js       286 automated tests
 │   └── sample_*            Made-up certificates for trying the upload
 ├── docs/
 │   ├── og-image.png        The picture shown when the link is shared
