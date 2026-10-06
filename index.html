@@ -15,11 +15,16 @@
   <meta property="og:image" content="https://purva9665.github.io/certwise-ctrlfreaks/docs/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="style.css">
-  <!-- use the saved light / dark choice before the page is drawn -->
+  <!-- before the page is drawn: use the saved light / dark choice; with no saved choice, follow the device -->
   <script>
-    try {
-      if (localStorage.getItem("certwise-theme") === "dark") document.documentElement.dataset.theme = "dark";
-    } catch (e) { /* storage blocked: stay light */ }
+    (function () {
+      var saved = null;
+      try {
+        saved = localStorage.getItem("certwise-theme");
+      } catch (e) { /* storage blocked: go by the device */ }
+      var deviceDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (saved === "dark" || (!saved && deviceDark)) document.documentElement.dataset.theme = "dark";
+    })();
   </script>
 </head>
 <body data-view="check">
@@ -224,6 +229,8 @@
         <tr><td>Job demand</td><td>In demand (verified sources or hiring reports)</td><td>Some demand / depends on the course</td><td>Not a credential employers ask for</td></tr>
       </table>
       <p class="small">70% or more = High market value · 45-69% = Medium · below 45% = Low. We also show the price and the fresher salary of the jobs it leads to, each with its source.</p>
+      <p class="small"><b>Same score, different level:</b> the three checks can't tell a first-step exam from a senior one - AWS Cloud Practitioner and CISSP both pass all three. So every exam also shows its level - <b>Entry</b> (the issuer's first-step exam), <b>Mid</b> (an associate or administrator exam) or <b>Senior</b> (a professional exam, or one that needs work experience) - and Browse lists the higher level first when scores are equal. The level does not change the score.
+        <b>Closed exams:</b> an exam that is no longer offered is marked "No longer offered" instead of a score, and is listed last.</p>
       <p class="small"><b>Not in our list?</b> For a Credly, Coursera or edX link we read the certificate's name, issuer and how it is earned from the issuer's own record, and score it from that. For anything else, answer three quick questions (who issued it, how it was earned, whether it has a verification link) and we score it the same way - clearly marked as based on your answers.
         <b>Need proof of the check?</b> Every result has a "Download report" button that saves a PDF with all the proof links.</p>
       <p class="small"><b>No made-up facts:</b> every price, salary and demand line links to its source. Prices and salaries are
@@ -254,6 +261,10 @@
       <details class="faq">
         <summary>Why does a genuine certificate get a low score?</summary>
         <p>Genuine is not the same as valuable. A real workshop certificate has no exam and no recognised issuer, so an employer has nothing to go on. The score looks at three things: who gives it, how it is earned, and whether its jobs are in demand.</p>
+      </details>
+      <details class="faq">
+        <summary>Why do so many exams score 100%?</summary>
+        <p>100% means the certificate passes all three checks: a recognised issuer, a supervised exam and jobs that are in demand. It does not mean every 100% is equal. A first-step exam like AWS Cloud Practitioner and a senior one like CISSP both pass, so each exam also shows its level - Entry, Mid or Senior - and Browse lists the higher level first. The level is shown beside the score and does not change it.</p>
       </details>
       <details class="faq">
         <summary>Where do the prices, salaries and demand come from?</summary>

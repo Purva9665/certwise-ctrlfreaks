@@ -115,14 +115,17 @@ What makes it different:
 - **Market value score** (High / Medium / Low) from three checks, each explained on the page.
 - Price, the jobs the certificate leads to, fresher salary and demand — each with a source link.
 - Up to three **higher-value certificates** in the same field.
-- Warnings, for example when an exam has closed or needs work experience.
+- **Exam level** (Entry, Mid or Senior) beside the score, because a first-step exam and a senior one can both
+  reach 100%. The level does not change the score.
+- An exam that is **no longer offered** is marked that way instead of being shown as a high score.
+- A warning when an exam needs work experience.
 - **One-line verdict** at the top of every result: both answers at a glance.
 
 **Browse and compare**
 
 - **Browse** all 44 certificates as cards, filtered by field (Cloud, Cybersecurity, Data Analyst...) and sorted by
-  market value, cost or name.
-- **Compare** any two side by side: score, the three checks, price, jobs and how each is verified.
+  market value, cost or name. On an equal score the higher exam level comes first; a closed exam is listed last.
+- **Compare** any two side by side: score, the three checks, exam level, price, jobs and how each is verified.
 
 **Getting the details off a certificate**
 
@@ -144,8 +147,8 @@ What makes it different:
   the same data the checker uses.
 - **About, Privacy, Terms and Contact**, with a privacy section that says exactly what is sent and what is kept.
 - Typo-tolerant search ("aws cloud practitoner" still works).
-- Works on phones, with a **light and dark theme**; no login and no cost.
-- 286 automated tests, run on every push.
+- Works on phones, with a **light and dark theme** that follows the device until you pick one; no login and no cost.
+- 317 automated tests, run on every push.
 
 ## Technologies / Tech Stack Used
 
@@ -162,7 +165,7 @@ What makes it different:
 | Core logic | Plain JavaScript in `logic.js` (edit distance, pattern matching, scoring) | The genuineness check, the market value score, and scoring a certificate from the issuer's record |
 | Data | JavaScript data files | 44 certificates, 17 verification methods, 71 recognised issuers, job data and UGC's list, with proof links |
 | Data refresh | Gemini API (free key), plus our own quote checker | Monthly update of prices, salaries and demand |
-| Testing | A plain Node.js test file (no test framework) | 286 tests of the logic and the API |
+| Testing | A plain Node.js test file (no test framework) | 317 tests of the logic and the API |
 | Automation | GitHub Actions | Runs the tests on every push; runs the monthly refresh |
 | Hosting | Render (page + server), GitHub Pages (page only), Dockerfile | ₹0 hosting: the full version on Render's free plan and an always-on copy on GitHub Pages |
 
@@ -205,7 +208,7 @@ Then open http://localhost:5174 in your browser. To use another port, set the `P
 npm test
 ```
 
-286 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
+317 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
 
 **Other ways**
 
@@ -257,7 +260,7 @@ certwise-ctrlfreaks/
 │   ├── pages.js            Downloads the source pages
 │   └── verify.js           Keeps a fact only if its exact quote is on the page
 ├── tests/
-│   ├── test_logic.js       286 automated tests
+│   ├── test_logic.js       317 automated tests
 │   └── sample_*            Made-up certificates for trying the upload
 ├── docs/
 │   ├── og-image.png        The picture shown when the link is shared

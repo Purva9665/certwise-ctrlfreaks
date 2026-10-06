@@ -153,8 +153,17 @@ function setup() {
   countTo($("statFake"), FAKE_UNIS.length);
   $("teamLine").textContent = TEAM;
   $("dataInfo").textContent = "Hand-checked facts: " + CERTS.length + " certificates. Recognised issuers for any other certificate: " +
-    KNOWN_ISSUERS.length + ". Official ways of verifying: " + ways + ". Live facts last refreshed: " +
-    (LIVE_DATA.refreshedOn || "not yet") + ".";
+    KNOWN_ISSUERS.length + ". Official ways of verifying: " + ways + ". Facts last checked by hand: " +
+    CHECKED_ON.split(" ")[0] + "." +
+    // the monthly refresh adds its own date once it has run
+    (LIVE_DATA.refreshedOn ? " Live facts last refreshed: " + LIVE_DATA.refreshedOn + "." : "");
+
+  // no saved choice: follow the device when it switches between light and dark
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+      if (!savedTheme()) showTheme(e.matches);
+    });
+  }
 }
 
 // ---------- views: the page works like an app with four screens ----------
@@ -357,8 +366,7 @@ function showSuggest() {
   for (const r of hits) {
     const v = marketValue(r.cert, ROLES, ROLE_INFO, LIVE_DATA);
     html += "<div class='sg' role='option' data-name='" + esc(r.cert.name) + "'><span class='grow'><b>" + esc(r.cert.name) +
-      "</b><span class='small'> · " + esc(r.cert.issuer) + "</span></span>" +
-      "<span class='pill " + v.level + "'>" + LEVEL_WORD[v.level] + " · " + v.percent + "%</span></div>";
+      "</b><span class='small'> · " + esc(r.cert.issuer) + "</span></span>" + pillHtml(v) + "</div>";
   }
   const exact = hits.length > 0 && normalize(hits[0].cert.name) === normalize(text);
   if (!exact) {
@@ -438,7 +446,8 @@ function saveRecent() {
   if (!last || last.cert.custom) return;
   const entry = {
     label: last.cert.name, name: last.typed || "", link: last.input.link, issuer: last.input.issuer,
-    level: last.g.level, percent: last.g.level === "red" || !last.v ? 0 : last.v.percent
+    level: last.g.level, percent: last.g.level === "red" || !last.v ? 0 : last.v.percent,
+    closed: !!(last.v && last.v.closed)       // an exam that is no longer offered shows that, not a score
   };
   const same = r => r.label === entry.label && r.link === entry.link && r.issuer === entry.issuer;
   const list = [entry].concat(loadRecent().filter(r => !same(r))).slice(0, 6);
@@ -462,7 +471,8 @@ function showRecent() {
     "<button type='button' id='recentClear' class='linkbtn'>Clear</button></div><div class='recent-list'>";
   list.forEach((r, i) => {
     html += "<a href='#' class='rc' data-i='" + i + "'><span class='dot-level " + esc(r.level) + "'></span>" +
-      "<span class='rc-name'>" + esc(r.label) + "</span><span class='rc-val'>" + Number(r.percent) + "%</span></a>";
+      "<span class='rc-name'>" + esc(r.label) + "</span><span class='rc-val'>" +
+      (r.closed === true ? "closed" : Number(r.percent) + "%") + "</span></a>";
   });
   box.innerHTML = html + "</div>";
   $("recentClear").addEventListener("click", () => {
@@ -485,15 +495,29 @@ function showRecent() {
 
 // ---------- light / dark ----------
 
-function setTheme(dark) {
+// the choice made with the switch ("dark" / "light"), or "" when the visitor has never used it
+function savedTheme() {
+  try {
+    return localStorage.getItem("certwise-theme") || "";
+  } catch (e) {
+    return "";
+  }
+}
+
+function showTheme(dark) {
   if (dark) document.documentElement.dataset.theme = "dark";
   else delete document.documentElement.dataset.theme;
+  showThemeButton();
+}
+
+// the switch was used: from now on that choice wins over the device's setting
+function setTheme(dark) {
+  showTheme(dark);
   try {
     localStorage.setItem("certwise-theme", dark ? "dark" : "light");
   } catch (e) {
     // storage is blocked: the choice just won't be remembered
   }
-  showThemeButton();
 }
 
 function showThemeButton() {
@@ -510,6 +534,13 @@ let browseField = "all";   // "all", a role id, or "general"
 let compareIds = [];       // up to two certificate ids, oldest first
 
 const LEVEL_WORD = { green: "High", amber: "Medium", red: "Low" };
+
+// the small label with the score. An exam that is no longer offered says so instead of showing a score to go after.
+function pillHtml(v) {
+  if (v.closed) return "<span class='pill amber'>" + esc(v.band) + "</span>";
+  return "<span class='pill " + v.level + "'>" + LEVEL_WORD[v.level] + " · " + v.percent + "%</span>";
+}
+
 const EARNED = {
   proctored: "Supervised exam",
   graded: "Online tests or projects",
@@ -540,11 +571,12 @@ function showCards() {
   for (const v of list) {
     const c = v.cert;
     html += "<article class='card' data-level='" + v.level + "'>" +
-      "<div class='card-top'><span class='pill " + v.level + "'>" + LEVEL_WORD[v.level] + " · " + v.percent + "%</span>" +
+      "<div class='card-top'>" + pillHtml(v) +
       "<label class='cmp'><input type='checkbox' data-id='" + esc(c.id) + "'" +
       (compareIds.includes(c.id) ? " checked" : "") + "> Compare</label></div>" +
       "<h4>" + esc(c.name) + "</h4><div class='small'>" + esc(c.issuer) + "</div>" +
-      "<div class='card-facts'>" + esc(EARNED[c.assessment]) + (c.costNote ? " · " + esc(c.costNote) : "") + "</div>" +
+      "<div class='card-facts'>" + esc(EARNED[c.assessment]) + (v.examLevel ? " · <b>" + esc(v.examLevel.name) + "</b>" : "") +
+      (c.costNote ? " · " + esc(c.costNote) : "") + "</div>" +
       "<a href='#' class='pick' data-name='" + esc(c.name) + "'>Check this certificate</a></article>";
   }
   $("cards").innerHTML = html;
@@ -585,7 +617,7 @@ function showCompare() {
     const cell = (v, row, i, side) => {
       let inner;
       if (i === 0) {
-        inner = "<span class='pill " + v.level + "'>" + LEVEL_WORD[v.level] + " · " + v.percent + "%</span>";
+        inner = pillHtml(v);
       } else if (i <= v.checks.length) {
         const ch = v.checks[i - 1];
         inner = dotsHtml(ch.points, ch.max) + "<div class='check-why'>" + esc(ch.reason) + "</div>";
@@ -960,6 +992,10 @@ function runCheck(scroll) {
 // show what the link tells us, then ask for its name or three quick answers.
 // g = the genuineness result to show first, or null; why = one line saying why we are asking
 function askAbout(label, input, g, why) {
+  if (input.issuer && matchFakeUni(input.issuer, FAKE_UNIS)) {
+    showFakeUni(label, input);          // a fake university needs no answers: the verdict comes first, with no questions
+    return;
+  }
   $("result").innerHTML = notFoundHtml(label, g, why, input.link !== "");
   $("customBtn").addEventListener("click", () => runCustom(label));
   if ($("whichBtn")) {
@@ -978,8 +1014,17 @@ function askAbout(label, input, g, why) {
     $("whichBtn").addEventListener("click", useName);
     $("whichInput").addEventListener("keydown", e => { if (e.key === "Enter") useName(); });
   }
-  if (input.issuer && matchFakeUni(input.issuer, FAKE_UNIS)) runCustom(label);   // a fake university needs no answers
   wirePicks();
+}
+
+// the institute is on UGC's list of fake universities: nothing else about the certificate matters,
+// so the result is shown straight away instead of the three questions
+function showFakeUni(label, input) {
+  const cert = customCert(label, input.issuer, { issuer: "unknown", earned: "attendance", field: "" });
+  last = { cert: cert, g: checkGenuineAny(input, "", VERIFY_METHODS, FAKE_UNIS),
+           v: marketValue(cert, ROLES, ROLE_INFO, LIVE_DATA), input: input, typed: label };
+  $("result").innerHTML = "";           // no questions on screen, so the result gets the whole box
+  showResult();
 }
 
 // no certificate from our list to go by: ask the issuer what this link is a record of, then score that
@@ -1062,10 +1107,11 @@ async function runFromLink(input, scroll, typedName) {
     : "The issuer did not answer just now, so we checked the link only.");
 }
 
-// draw the newest result (last) - in the main box, or under the three questions for an unlisted certificate
+// draw the newest result (last) - in the main box, or under the three questions when those are on screen
 function showResult() {
   const html = resultHtml(last.cert, last.g, last.v);
-  if (last.cert.custom) $("customResult").innerHTML = html;
+  const under = last.cert.custom ? $("customResult") : null;
+  if (under) under.innerHTML = html;
   else $("result").innerHTML = "<section class='box result'>" + html + "</section>";
   $("reportBtn").addEventListener("click", downloadReport);
   if ($("shareBtn")) $("shareBtn").addEventListener("click", toggleShare);
@@ -1199,7 +1245,8 @@ function resultHtml(cert, g, v) {
     (cert.custom ? "" : "<button id='shareBtn' class='ghost' type='button' aria-expanded='false'>" + icon("share") + " Share</button>") +
     "<button id='reportBtn' class='ghost'>" + icon("download") + " Download report</button></div></div>" +
     (cert.custom ? "" : "<div id='shareBox' class='sharebox hidden'></div>") +
-    (cert.custom ? "<div class='warn'>" + icon("edit") + "<span>This certificate is not in our list, so it is scored from " +
+    // (a fake university is decided by UGC's list, not by anyone's answers)
+    (cert.custom && g.verdict !== "Fake university" ? "<div class='warn'>" + icon("edit") + "<span>This certificate is not in our list, so it is scored from " +
       "<b>your answers</b>. We could not check those facts ourselves.</span></div>" : "") +
     (cert.record ? "<div class='info'>" + icon("check") + "<span>This certificate is not in our list. We read it from <b>" +
       esc(SITE_NAME[cert.record.site]) + "'s own record</b> and scored it from that.</span></div>" : "") +
@@ -1378,7 +1425,8 @@ function valueHtml(cert, v, g) {
   }
   html += "<div class='gauge-row'>" + gaugeHtml(v.percent, v.level) +
     "<div><div class='verdict " + v.level + "-text'>" + esc(v.band) + (fake ? " (if genuine)" : "") + "</div>" +
-    "<div class='status-sub'>" + v.total + " of " + v.max + " points from 3 checks</div></div></div>";
+    "<div class='status-sub'>" + v.total + " of " + v.max + " points from 3 checks" +
+    (v.examLevel ? " · " + esc(v.examLevel.name) : "") + "</div></div></div>";
   if (g.verdict === "Real, but a different certificate") {
     html += "<div class='warn'>" + icon("alert") + "<span>This score is for " + esc(cert.name) +
       ". The issuer's record is for a different certificate, so it may not apply to this holder.</span></div>";
@@ -1394,6 +1442,12 @@ function valueHtml(cert, v, g) {
     html += "</div></div>";
   }
   html += "</div>";
+
+  // the three checks can't tell a first-step exam from a senior one, so the level is said in words
+  if (v.examLevel) {
+    html += "<div class='fact'>" + icon("award") + "<div><b>" + esc(v.examLevel.name) + ":</b> " + esc(v.examLevel.note) +
+      " The score does not count the level, so two exams with the same score are not always equal.</div></div>";
+  }
 
   // what the issuer's own record lists (only for a certificate we read from the record)
   if (cert.record) {
@@ -1448,7 +1502,7 @@ function valueHtml(cert, v, g) {
 
   const better = betterValue(cert, CERTS, ROLES, ROLE_INFO, LIVE_DATA, 3);
   if (better.length > 0) {
-    html += "<div class='alts'><b>Higher value in the same field</b><ul>";
+    html += "<div class='alts'><b>" + (v.closed ? "In the same field, and still open" : "Higher value in the same field") + "</b><ul>";
     for (const b of better) {
       html += "<li><a href='#' class='pick' data-name='" + esc(b.cert.name) + "'>" + esc(b.cert.name) + "</a> " +
         b.percent + "% · " + esc(b.cert.costNote) + "</li>";
@@ -1728,7 +1782,7 @@ function reportDoc() {
   write("Issued by " + cert.issuer, 10, "normal", [91, 107, 99]);
   if (last.input.link) write("Link / ID checked: " + last.input.link, 9);
   if (last.input.issuer) write("Institute checked: " + last.input.issuer, 9);
-  if (cert.custom) write("This certificate is not in our list. It is scored from the user's own answers, which CertWise could not check.", 9, "italic", REPORT_COLOR.amber);
+  if (cert.custom && g.verdict !== "Fake university") write("This certificate is not in our list. It is scored from the user's own answers, which CertWise could not check.", 9, "italic", REPORT_COLOR.amber);
   if (cert.record) write("This certificate is not in our list. It was read from " + SITE_NAME[cert.record.site] + "'s own record and scored from that.", 9, "italic", REPORT_COLOR.grey);
 
   heading("1. Is it genuine?");
@@ -1757,9 +1811,11 @@ function reportDoc() {
     write("CertWise checks the link, the ID format, public lists and published facts. It sells no courses and takes no commission.", 8, "italic", [91, 107, 99]);
     return doc;
   }
-  write((fake ? "For a genuine one: " : "") + v.percent + "% - " + v.band + " (" + v.total + " of " + v.max + " points)", 12, "bold",
-        fake ? REPORT_COLOR.grey : REPORT_COLOR[v.level]);
+  // an exam that is no longer offered leads with that, not with its score
+  write((fake ? "For a genuine one: " : "") + (v.closed ? v.band + " - " + v.percent + "%" : v.percent + "% - " + v.band) +
+        " (" + v.total + " of " + v.max + " points)", 12, "bold", fake ? REPORT_COLOR.grey : REPORT_COLOR[v.level]);
   if (v.warning) write("Note: " + v.warning, 10, "normal", REPORT_COLOR.amber);
+  if (v.examLevel) write(v.examLevel.name + ": " + v.examLevel.note + " The score does not count the level.", 10);
   y += 1;
   for (const ch of v.checks) {
     write(ch.name + ": " + ch.points + " / " + ch.max, 10, "bold");
@@ -1788,7 +1844,7 @@ function reportDoc() {
   const better = betterValue(cert, CERTS, ROLES, ROLE_INFO, LIVE_DATA, 3);
   if (better.length > 0) {
     y += 1;
-    write("Higher value in the same field", 10, "bold");
+    write(v.closed ? "In the same field, and still open" : "Higher value in the same field", 10, "bold");
     for (const b of better) write("- " + b.cert.name + ": " + b.percent + "% · " + b.cert.costNote, 10);
   }
 

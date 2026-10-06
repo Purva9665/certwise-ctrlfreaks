@@ -512,11 +512,30 @@ function marketValue(cert, roles, roleInfo, live) {
 
   // things that matter more than the score
   let warning = null;
-  if (cert.status === "closed") warning = "No longer offered - it can't be earned now.";
+  const closed = cert.status === "closed";
+  if (closed) {
+    // an exam nobody can sit any more is never shown as a high score to go after
+    band = "No longer offered";
+    level = "amber";
+    warning = "It can't be earned now - the score only matters if you already hold it.";
+  }
   else if (cert.eligibility) warning = "Not for freshers yet: " + cert.eligibility;
 
   return { cert: cert, checks: checks, total: total, max: max, percent: percent,
-           band: band, level: level, warning: warning, jobs: jobs, demand: demand };
+           band: band, level: level, warning: warning, jobs: jobs, demand: demand,
+           closed: closed, examLevel: EXAM_LEVELS[cert.examLevel] || null };
+}
+
+// where an exam sits on its issuer's own ladder (examLevel in data/certs.js).
+// The three checks can't tell a first-step exam from a senior one - both can reach 100% - so the level is shown beside the score.
+const EXAM_LEVELS = {
+  entry:  { rank: 1, name: "Entry level",  note: "The issuer's first-step exam." },
+  mid:    { rank: 2, name: "Mid level",    note: "An associate or administrator exam, for people who do the job." },
+  senior: { rank: 3, name: "Senior level", note: "A professional exam, or one that needs work experience first." }
+};
+
+function levelRank(v) {
+  return v.examLevel ? v.examLevel.rank : 0;
 }
 
 // ---------- a certificate that is NOT in our list ----------
@@ -609,9 +628,11 @@ function costRank(cert) {
   return ["free", "low", "medium", "high"].indexOf(cert.costBand);
 }
 
-// up to `howMany` certificates that share a job with this one and score higher; cheaper first on a tie
+// up to `howMany` certificates that share a job with this one and score higher; cheaper first on a tie.
+// For an exam that is no longer offered: the certificates in its field that can still be earned.
 function betterValue(cert, certs, roles, roleInfo, live, howMany) {
   const mine = marketValue(cert, roles, roleInfo, live);
+  if (mine.closed) mine.percent = -1;
   const fields = cert.roles.filter(r => r !== "all");
   const list = [];
   for (const c of certs) {
@@ -630,7 +651,8 @@ function betterValue(cert, certs, roles, roleInfo, live, howMany) {
 
 // every certificate with its score, for the "Browse" cards.
 // field : "all", a role id like "cloud", or "general" (certificates not tied to one job)
-// sortBy: "value" (highest score first), "cost" (cheapest first) or "name"
+// sortBy: "value" (highest score first; on a tie the higher exam level first), "cost" (cheapest first) or "name"
+// With "value", an exam that is no longer offered goes to the end whatever it scored.
 function browseList(certs, roles, roleInfo, live, field, sortBy) {
   const list = [];
   for (const c of certs) {
@@ -643,7 +665,8 @@ function browseList(certs, roles, roleInfo, live, field, sortBy) {
   const byName = (a, b) => plain(a).localeCompare(plain(b));
   if (sortBy === "name") list.sort(byName);
   else if (sortBy === "cost") list.sort((a, b) => (costRank(a.cert) - costRank(b.cert)) || (b.percent - a.percent) || byName(a, b));
-  else list.sort((a, b) => (b.percent - a.percent) || (costRank(a.cert) - costRank(b.cert)) || byName(a, b));
+  else list.sort((a, b) => (a.closed - b.closed) || (b.percent - a.percent) || (levelRank(b) - levelRank(a)) ||
+                           (costRank(a.cert) - costRank(b.cert)) || byName(a, b));
   return list;
 }
 
@@ -651,13 +674,19 @@ function browseList(certs, roles, roleInfo, live, field, sortBy) {
 // better = "a", "b" or "" (a tie, or a row that has no winner such as the price)
 function compareRows(a, b) {
   const win = (x, y) => (x > y ? "a" : (y > x ? "b" : ""));
-  const rows = [{ label: "Market value", a: a.percent + "% - " + a.band, b: b.percent + "% - " + b.band,
-                  better: win(a.percent, b.percent) }];
+  const worth = v => (v.closed ? v.band : v.percent + "% - " + v.band);
+  const score = v => (v.closed ? -1 : v.percent);          // an exam that can't be earned never wins on value
+  const rows = [{ label: "Market value", a: worth(a), b: worth(b), better: win(score(a), score(b)) }];
   for (let i = 0; i < a.checks.length; i++) {
     const ca = a.checks[i], cb = b.checks[i];
     rows.push({ label: ca.name, a: ca.points + " of " + ca.max + " - " + ca.reason,
                 b: cb.points + " of " + cb.max + " - " + cb.reason, better: win(ca.points, cb.points) });
   }
+  // the level only has a winner between two exams that both have one
+  const lvl = v => (v.examLevel ? v.examLevel.name + " - " + v.examLevel.note
+                                : (v.closed ? "No longer offered" : "Not an exam with levels"));
+  rows.push({ label: "Exam level", a: lvl(a), b: lvl(b),
+              better: a.examLevel && b.examLevel ? win(levelRank(a), levelRank(b)) : "" });
   const jobs = v => (v.jobs.length > 0 ? v.jobs.map(j => j.name).join(", ") : "Depends on the course");
   rows.push({ label: "Price", a: a.cert.costNote || "-", b: b.cert.costNote || "-", better: "" });
   rows.push({ label: "Jobs it leads to", a: jobs(a), b: jobs(b), better: "" });
@@ -670,6 +699,7 @@ function verdictLine(g, v) {
   let worth;
   if (g.verdict === "Fake university") worth = { level: "red", text: "No market value" };
   else if (g.level === "red") worth = { level: "red", text: "No market value if it is fake" };
+  else if (v.closed) worth = { level: "amber", text: "No longer offered - it can't be earned now" };
   else if (g.verdict === "Real, but a different certificate") {
     // the issuer's record is for something else, so the score may not belong to this holder
     worth = { level: "amber", text: v.band + " (" + v.percent + "%) - for the certificate you named" };
@@ -887,6 +917,6 @@ if (typeof module !== "undefined") {
                      shareHash, readShareHash, shareText, coverRows, ONE_KIND_SITES,
                      checkFile, pickLink, checkGenuine, demandSources, marketValue, betterValue,
                      customCert, checkGenuineAny, findInText, sameCert, applyLive,
-                     browseList, compareRows, verdictLine,
+                     browseList, compareRows, verdictLine, EXAM_LEVELS,
                      kindOfText, knownIssuer, earnedFromText, fieldsFromText, listedCert, recordCert, certForLink };
 }

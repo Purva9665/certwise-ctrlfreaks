@@ -13,6 +13,12 @@
 // roles      : dev, web, cloud, sec, data, ai   ("all" = depends on which course you pick)
 // aliases    : lowercase words we search for inside job posts
 // keywords   : (optional) extra words only for the search box
+// examLevel  : (exams from a company / body only) where the exam sits on its issuer's own ladder:
+//              "entry"  = the issuer's first-step exam (AWS "Foundational", Microsoft "Fundamentals", "Foundations"...)
+//              "mid"    = an associate or administrator exam, for people who do the job
+//              "senior" = a professional exam, or one that needs work experience before you may sit it
+//              Left out for course certificates (it depends on the course) and for an exam that is closed.
+//              It does not change the score - it is shown beside it, so two exams at 100% can be told apart.
 // eligibility: null, or what you need before you are allowed to sit the exam
 // status     : "active" or "closed"
 // src        : proof links - the official page and a source for any special claim in the note
@@ -38,6 +44,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Exam fee USD 100", roles: ["cloud"],
     aliases: ["aws certified cloud practitioner", "cloud practitioner", "clf-c02"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "AWS exam page", url: "https://aws.amazon.com/certification/certified-cloud-practitioner/" }
@@ -49,6 +56,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Exam fee USD 150", roles: ["cloud", "dev"],
     aliases: ["solutions architect associate", "aws certified solutions architect", "saa-c03", "aws saa"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "AWS exam page", url: "https://aws.amazon.com/certification/certified-solutions-architect-associate/" }
@@ -60,6 +68,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Exam fee USD 100", roles: ["ai", "cloud"],
     aliases: ["aws certified ai practitioner", "ai practitioner", "aif-c01"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "AWS exam page", url: "https://aws.amazon.com/certification/certified-ai-practitioner/" }
@@ -71,6 +80,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Exam fee (lower regional price in India)", roles: ["cloud"],
     aliases: ["az-900", "azure fundamentals"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "Microsoft Learn exam page", url: "https://learn.microsoft.com/en-us/credentials/certifications/azure-fundamentals/" }
@@ -82,6 +92,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Exam fee (regional price in India)", roles: ["cloud"],
     aliases: ["az-104", "azure administrator"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "Microsoft Learn exam page", url: "https://learn.microsoft.com/en-us/credentials/certifications/azure-administrator/" }
@@ -93,6 +104,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Registration fee USD 99 (plus tax)", roles: ["cloud"],
     aliases: ["cloud digital leader"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "Google Cloud exam page", url: "https://cloud.google.com/learn/certification/cloud-digital-leader" }
@@ -104,6 +116,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Rs 20,000 + 18% GST in India (USD 500 elsewhere), includes one free retake", roles: ["cloud", "sec"],
     aliases: ["rhcsa", "red hat certified system administrator", "ex200"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "Red Hat exam page", url: "https://www.redhat.com/en/services/certification/rhcsa" },
@@ -116,6 +129,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Exam fee USD 445 (exam only)", roles: ["cloud"],
     aliases: ["cka", "certified kubernetes administrator"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "Linux Foundation exam page", url: "https://training.linuxfoundation.org/certification/certified-kubernetes-administrator-cka/" }
@@ -127,6 +141,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Exam fee USD 70.50", roles: ["cloud"],
     aliases: ["terraform associate", "hashicorp certified"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "HashiCorp certifications page", url: "https://developer.hashicorp.com/certifications" },
@@ -141,6 +156,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Exam voucher USD 439 (list price since June 2026)", roles: ["sec"],
     aliases: ["security+", "security plus", "comptia security", "sy0-701"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "CompTIA exam page", url: "https://www.comptia.org/en-us/certifications/security/" },
@@ -154,6 +170,7 @@ const CERTS = [
     costNote: "Exam USD 199 + USD 50 yearly fee. The free-exam offer ended on 20 May 2026.",
     roles: ["sec"],
     aliases: ["certified in cybersecurity", "isc2 cc", "(isc)2 cc"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "ISC2 CC page", url: "https://www.isc2.org/certifications/cc" },
@@ -168,6 +185,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Exam voucher USD 950 - 1,199, plus a USD 100 application fee if you skip official training", roles: ["sec"],
     aliases: ["ceh", "certified ethical hacker"],
+    examLevel: "mid",
     eligibility: "Needs EC-Council official training, or 2 years of security work experience.",
     status: "active",
     src: [
@@ -183,6 +201,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Exam fee USD 749", roles: ["sec"],
     aliases: ["cissp"],
+    examLevel: "senior",
     eligibility: "Needs 5 years of paid security work experience.",
     status: "active",
     src: [
@@ -197,6 +216,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Exam fee USD 300", roles: ["sec", "cloud"],
     aliases: ["ccna", "cisco certified network associate"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "Cisco CCNA page", url: "https://www.cisco.com/site/us/en/learn/training-certifications/certifications/enterprise/ccna/index.html" }
@@ -244,6 +264,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Exam fee (regional price in India)", roles: ["data"],
     aliases: ["pl-300", "power bi data analyst"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "Microsoft Learn exam page", url: "https://learn.microsoft.com/en-us/credentials/certifications/data-analyst-associate/" }
@@ -303,6 +324,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Price set per country - see the Oracle exam page", roles: ["dev"],
     aliases: ["1z0-811", "java foundations"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "Oracle exam page", url: "https://education.oracle.com/java-foundations/pexam_1Z0-811" }
@@ -314,6 +336,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Exam fee about USD 245 in most countries", roles: ["dev"],
     aliases: ["1z0-829", "java se 17 developer", "oracle certified professional"],
+    examLevel: "senior",
     eligibility: null, status: "active",
     src: [
       { name: "Oracle exam page", url: "https://education.oracle.com/java-se-17-developer/pexam_1Z0-829" },
@@ -451,6 +474,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "medium",
     costNote: "Exam fee depends on the country (see the official page)", roles: ["ai", "cloud"],
     aliases: ["ai-900", "azure ai fundamentals"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "Microsoft Learn exam page", url: "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-fundamentals/" }
@@ -462,6 +486,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "graded", costBand: "medium",
     costNote: "USD 99; the fee is waived for students verified through GitHub Education", roles: ["dev", "web"],
     aliases: ["github foundations", "gh-900"],
+    examLevel: "entry",
     eligibility: null, status: "active",
     src: [
       { name: "GitHub blog: fee waived for students, non-proctored exam", url: "https://github.blog/news-insights/company-news/students-start-building-your-skills-with-the-github-foundations-certification" },
@@ -474,6 +499,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Registration fee USD 125 (plus tax)", roles: ["cloud"],
     aliases: ["associate cloud engineer"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "Google Cloud exam page", url: "https://cloud.google.com/learn/certification/cloud-engineer" }
@@ -485,6 +511,7 @@ const CERTS = [
     issuerType: "vendor", assessment: "proctored", costBand: "high",
     costNote: "Exam fee USD 150", roles: ["cloud", "dev"],
     aliases: ["aws certified developer", "developer associate", "dva-c02"],
+    examLevel: "mid",
     eligibility: null, status: "active",
     src: [
       { name: "AWS exam page", url: "https://aws.amazon.com/certification/certified-developer-associate/" }

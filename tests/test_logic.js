@@ -21,6 +21,10 @@ for (const c of CERTS) {
     if (!allowed.includes(c[k])) { fails++; console.log("FAIL bad " + k + " in " + c.id); }
   }
   for (const r of c.roles) if (r !== "all" && !ROLE_INFO[r]) { fails++; console.log("FAIL bad role " + r + " in " + c.id); }
+  // an exam level is one of three words, and only an exam from a company / body that can still be sat has one
+  if (c.examLevel !== undefined && !L.EXAM_LEVELS[c.examLevel]) { fails++; console.log("FAIL bad examLevel in " + c.id); }
+  if (c.examLevel && (c.issuerType !== "vendor" || c.status === "closed")) { fails++; console.log("FAIL examLevel not allowed for " + c.id); }
+  if (!c.examLevel && c.issuerType === "vendor" && c.status !== "closed") { fails++; console.log("FAIL no examLevel for " + c.id); }
   if (!VERIFY_METHODS[CERT_VERIFY[c.id]]) { fails++; console.log("FAIL no verify method for " + c.id); }
 }
 for (const key in VERIFY_METHODS) {
@@ -141,8 +145,26 @@ r = mv("nptel"); eq("nptel value", r.percent, 83);
 r = mv("google-data"); eq("google data value", r.percent, 67); eq("google data band", r.band, "Medium market value");
 r = mv("oracle-java-se"); eq("java se (IT under pressure)", r.percent, 83);
 r = mv("cissp"); eq("cissp needs experience", r.warning !== null, true);
-r = mv("tf-dev"); eq("tf closed", r.warning, "No longer offered - it can't be earned now.");
 eq("aws ccp leads to cloud jobs", mv("aws-ccp").jobs[0].id, "cloud");
+
+// an exam that is no longer offered is never shown as a high score to go after
+r = mv("tf-dev");
+eq("closed: flagged", r.closed, true);
+eq("closed: band says so", r.band, "No longer offered");
+eq("closed: not green", r.level, "amber");
+eq("closed: warning", r.warning, "It can't be earned now - the score only matters if you already hold it.");
+eq("closed: the three checks are still worked out", r.total + " of " + r.max, "6 of 6");
+eq("open exam is not flagged", mv("aws-ccp").closed, false);
+eq("open exam keeps its band", mv("aws-ccp").band, "High market value");
+
+// exam level: tells two exams with the same score apart, without changing the score
+eq("level: aws ccp is entry", mv("aws-ccp").examLevel.name, "Entry level");
+eq("level: aws saa is mid", mv("aws-saa").examLevel.name, "Mid level");
+eq("level: cissp is senior", mv("cissp").examLevel.name, "Senior level");
+eq("level: a course certificate has none", mv("google-data").examLevel, null);
+eq("level: a closed exam has none", mv("tf-dev").examLevel, null);
+eq("level: same score, different level", mv("aws-ccp").percent === mv("cissp").percent && mv("aws-ccp").examLevel.rank < mv("cissp").examLevel.rank, true);
+eq("level: an unlisted certificate has none", L.marketValue(L.customCert("Some certificate", "", { issuer: "vendor", earned: "proctored", field: "cloud" }), ROLES, ROLE_INFO, { certs: {}, roles: {} }).examLevel, null);
 
 // demand from verified live sources (TEST-ONLY sample, never shipped)
 const fakeLive = { roles: {}, certs: {
@@ -161,6 +183,9 @@ const better = (id) => L.betterValue(cert(id), CERTS, ROLES, ROLE_INFO, { certs:
 eq("workshop -> nptel first", better("workshop")[0], "nptel");
 eq("google data -> pl-300 suggested", better("google-data").includes("pl-300"), true);
 eq("aws ccp -> nothing higher", better("aws-ccp").length, 0);
+eq("closed exam -> certificates that can still be earned", better("tf-dev").length > 0, true);
+eq("closed exam -> same field only", better("tf-dev").every(id => cert(id).roles.includes("ai")), true);
+eq("closed exam is never suggested", CERTS.every(c => !better(c.id).includes("tf-dev")), true);
 console.log("   better for google-cyber:", better("google-cyber").join(", "));
 
 // --- browse and compare ---
@@ -169,8 +194,15 @@ const browse = (field, sortBy) => L.browseList(CERTS, ROLES, ROLE_INFO, NO_LIVE,
 const inOrder = (list, ok) => list.every((v, i) => i === 0 || ok(list[i - 1], v));
 eq("browse: all certificates listed", browse("all", "value").length, CERTS.length);
 eq("browse: highest value first", browse("all", "value")[0].percent, 100);
-eq("browse: lowest value last", browse("all", "value")[CERTS.length - 1].percent, 0);
-eq("browse: sorted by value", inOrder(browse("all", "value"), (a, b) => a.percent >= b.percent), true);
+const openOnes = browse("all", "value").filter(v => !v.closed);
+eq("browse: a closed exam is listed last", browse("all", "value")[CERTS.length - 1].cert.id, "tf-dev");
+eq("browse: lowest value last of the rest", openOnes[openOnes.length - 1].percent, 0);
+eq("browse: sorted by value", inOrder(openOnes, (a, b) => a.percent >= b.percent), true);
+const rankOf = v => (v.examLevel ? v.examLevel.rank : 0);
+eq("browse: same score -> higher exam level first", inOrder(openOnes, (a, b) => a.percent !== b.percent || rankOf(a) >= rankOf(b)), true);
+const placeOf = id => openOnes.findIndex(v => v.cert.id === id);
+eq("browse: cissp (senior) before aws ccp (entry)", placeOf("cissp") < placeOf("aws-ccp"), true);
+eq("browse: aws saa (mid) before aws ccp (entry)", placeOf("aws-saa") < placeOf("aws-ccp"), true);
 eq("browse: field filter keeps only that field", browse("sec", "value").every(v => v.cert.roles.includes("sec")), true);
 eq("browse: field filter finds them all", browse("cloud", "value").length, CERTS.filter(c => c.roles.includes("cloud")).length);
 eq("browse: general = not tied to one job", browse("general", "value").every(v => v.cert.roles.every(x => x === "all")), true);
@@ -181,7 +213,16 @@ eq("browse: cheapest first", browse("all", "cost")[0].cert.costBand, "free");
 eq("browse: sorted by name", inOrder(browse("all", "name"), (a, b) =>
   a.cert.name.replace(/^[^a-z0-9]+/i, "").localeCompare(b.cert.name.replace(/^[^a-z0-9]+/i, "")) <= 0), true);
 let rows = L.compareRows(mv("pl-300"), mv("google-data"));
-eq("compare: 7 rows", rows.length, 7);
+eq("compare: 8 rows", rows.length, 8);
+const levelRow = (a, b) => L.compareRows(mv(a), mv(b)).find(x => x.label === "Exam level");
+eq("compare: senior beats entry on level", levelRow("cissp", "aws-ccp").better, "a");
+eq("compare: level the other way round", levelRow("aws-ccp", "aws-saa").better, "b");
+eq("compare: same level is a tie", levelRow("aws-ccp", "az-900").better, "");
+eq("compare: no level winner against a course certificate", levelRow("pl-300", "google-data").better, "");
+eq("compare: a course certificate says it has no level", levelRow("pl-300", "google-data").b, "Not an exam with levels");
+eq("compare: a closed exam never wins on value", L.compareRows(mv("tf-dev"), mv("google-data"))[0].better, "b");
+eq("compare: a closed exam shows no score", L.compareRows(mv("tf-dev"), mv("google-data"))[0].a, "No longer offered");
+eq("compare: a closed exam shows no level", levelRow("tf-dev", "google-data").a, "No longer offered");
 eq("compare: pl-300 beats google data on value", rows[0].better, "a");
 eq("compare: the other way round", L.compareRows(mv("google-data"), mv("pl-300"))[0].better, "b");
 eq("compare: supervised exam beats online tests", rows[2].better, "a");
@@ -204,6 +245,11 @@ eq("verdict line: genuine but low value", line.worth.text, "Low market value (0%
 line = L.verdictLine({ level: "amber", verdict: "Real, but a different certificate" }, mv("aws-ccp"));
 eq("verdict line: a different certificate - score is for the one named", line.worth.text, "High market value (100%) - for the certificate you named");
 eq("verdict line: a different certificate is amber", line.worth.level, "amber");
+line = L.verdictLine(g("tf-dev", ""), mv("tf-dev"));
+eq("verdict line: a closed exam says so, with no score", line.worth.text, "No longer offered - it can't be earned now");
+eq("verdict line: a closed exam is amber", line.worth.level, "amber");
+line = L.verdictLine({ level: "red", verdict: "Look-alike website" }, mv("tf-dev"));
+eq("verdict line: a fake closed exam is still a fake", line.worth.text, "No market value if it is fake");
 
 // --- free refresh helpers (refresh/pages.js) ---
 const P = require("../refresh/pages.js");
