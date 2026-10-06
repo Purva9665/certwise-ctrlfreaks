@@ -275,7 +275,7 @@ eq("api: not a link", A.liveTarget("140-123-456"), null);
 function pretend(answers) {
   return async address => {
     const a = answers[address] || { status: 404 };
-    return { status: a.status, ok: a.status === 200, json: async () => a.json, body: null };
+    return { status: a.status, ok: a.status === 200, json: async () => a.json, text: async () => a.text || "", body: null };
   };
 }
 const BADGE = "https://www.credly.com/api/v1/obi/v2/issuers/i1/badge_classes/b1";
@@ -283,6 +283,97 @@ const realCredly = pretend({
   ["https://www.credly.com/api/v1/obi/v2/badge_assertions/" + UUID]: { status: 200, json: { issuedOn: "2025-06-01T00:00:00.000Z", expires: "2028-06-01", badge: BADGE } },
   [BADGE]: { status: 200, json: { name: "AWS Certified Cloud Practitioner", issuer: { name: "Amazon Web Services Training and Certification" } } }
 });
+
+// --- any certificate: what the user typed, and scoring from the issuer's own record ---
+const { KNOWN_ISSUERS, FIELD_WORDS, COURSERA_GRADED_SRC } = require("../data/issuers.js");
+eq("kind: a name", L.kindOfText("AWS Cloud Practitioner", VERIFY_METHODS), "name");
+eq("kind: a link", L.kindOfText("https://www.credly.com/badges/abc", VERIFY_METHODS), "link");
+eq("kind: a link without https", L.kindOfText("coursera.org/verify/ABCD1234", VERIFY_METHODS), "link");
+eq("kind: a bare website", L.kindOfText("credly.com", VERIFY_METHODS), "link");
+eq("kind: a Red Hat ID", L.kindOfText("140-123-456", VERIFY_METHODS), "id");
+eq("kind: node.js is a name", L.kindOfText("node.js", VERIFY_METHODS), "name");
+eq("kind: az-900 is a name", L.kindOfText("az-900", VERIFY_METHODS), "name");
+eq("kind: empty", L.kindOfText("  ", VERIFY_METHODS), "empty");
+
+const ki = (name, text) => { const k = L.knownIssuer(name, text || "", KNOWN_ISSUERS); return k ? k.name + ":" + k.type : null; };
+eq("issuer: AWS", ki("Amazon Web Services Training and Certification"), "Amazon Web Services:vendor");
+eq("issuer: Cisco", ki("Cisco"), "Cisco:vendor");
+eq("issuer: a Cisco academy course", ki("Cisco", "Passing score on Cisco Networking Academy final exam"), "Cisco Networking Academy:platform");
+eq("issuer: ISC2 with brackets", ki("(ISC)²"), "ISC2:vendor");
+eq("issuer: whole words only", ki("Intelligence Training Hub"), null);
+eq("issuer: unknown", ki("Sharma Coaching Classes"), null);
+const issuerNames = new Set();
+for (const entry of KNOWN_ISSUERS) {
+  if (issuerNames.has(entry.name)) { fails++; console.log("FAIL duplicate issuer " + entry.name); }
+  issuerNames.add(entry.name);
+  if (!["vendor", "academic", "platform"].includes(entry.type) || entry.match.length === 0) { fails++; console.log("FAIL bad issuer entry " + entry.name); }
+}
+for (const field in FIELD_WORDS) if (!ROLE_INFO[field]) { fails++; console.log("FAIL field words for an unknown role " + field); }
+
+eq("earned: supervised", L.earnedFromText("Pass the proctored certification exam"), "proctored");
+eq("earned: exam", L.earnedFromText("Assessment: Passing score on the final exam."), "graded");
+eq("earned: passing grade", L.earnedFromText("successfully completed and received a passing grade in Git"), "graded");
+eq("earned: attending", L.earnedFromText("Attend the two-day workshop"), "attendance");
+eq("earned: finishing", L.earnedFromText("Complete all the video lessons"), "completion");
+eq("earned: nothing said", L.earnedFromText(""), null);
+eq("earned: no clue in the words", L.earnedFromText("Awarded to outstanding members"), null);
+
+const ff = text => L.fieldsFromText(text, FIELD_WORDS).join(",");
+eq("field: front-end", ff("Introduction to Front-End Development"), "web");
+eq("field: git", ff("Git and GitHub Basics"), "dev");
+eq("field: security skills", ff("Introduction to Cybersecurity Cyber Best Practices Network Vulnerabilities Threat Detection"), "sec");
+eq("field: java is not javascript", ff("JavaScript Essentials"), "web");
+eq("field: none", ff("Leadership and Teamwork"), "");
+
+const lc = d => { const c = L.listedCert(d, CERTS); return c ? c.id : null; };
+eq("listed: AWS badge", lc({ badgeName: "AWS Certified Cloud Practitioner", issuerName: "Amazon Web Services Training and Certification" }), "aws-ccp");
+eq("listed: Cisco academy course", lc({ badgeName: "Introduction to Cybersecurity", issuerName: "Cisco" }), "netacad");
+eq("listed: same name from another issuer is not ours", lc({ badgeName: "AWS Certified Cloud Practitioner", issuerName: "Sharma Coaching Classes" }), null);
+eq("listed: a different AWS exam is not guessed", lc({ badgeName: "AWS Certified Data Engineer - Associate", issuerName: "Amazon Web Services Training and Certification" }), null);
+eq("listed: a course we don't have", lc({ badgeName: "Git and GitHub Basics", issuerName: "IBM", platform: "edX" }), null);
+
+const cfl = link => { const c = L.certForLink(link, VERIFY_METHODS, CERT_VERIFY, CERTS); return c ? c.id : null; };
+eq("site: an NPTEL link is an NPTEL certificate", cfl("https://nptel.ac.in/noc/E_Certificate/NPTEL24CS01S1"), "nptel");
+eq("site: a Udemy short link", cfl("https://ude.my/UC-12345"), "udemy");
+eq("site: an Internshala link", cfl("trainings.internshala.com/verify_certificate"), "internshala");
+eq("site: Credly hosts many certificates", cfl("https://www.credly.com/badges/" + UUID), null);
+eq("site: Red Hat could be any Red Hat exam", cfl("https://rhtapps.redhat.com/verify"), null);
+eq("site: a copy-cat is not the real site", cfl("https://nptel-ac.in.example.com/noc/x"), null);
+eq("site: an ID is not a site", cfl("140-123-456"), null);
+
+const rc = (d, site) => L.recordCert(d, site, KNOWN_ISSUERS, FIELD_WORDS, COURSERA_GRADED_SRC);
+let auto = rc({ badgeName: "Networking Basics", issuerName: "Cisco", criteria: "Assessment: Passing score on Cisco Networking Academy final exam.", skills: ["Networking", "IP Addressing"] }, "credly");
+eq("record: marked as read from the record", auto.auto, true);
+eq("record: academy course is a learning programme", auto.issuerType, "platform");
+eq("record: an exam, in the issuer's words", auto.assessment, "graded");
+eq("record: field from the skills", auto.roles.join(","), "cloud");
+r = L.marketValue(auto, ROLES, ROLE_INFO, NO_LIVE);
+eq("record: score", r.percent, 67);
+eq("record: the reason quotes the issuer", r.checks[1].reason.includes("Passing score on Cisco Networking Academy final exam"), true);
+auto = rc({ badgeName: "AWS Certified Data Engineer - Associate", issuerName: "Amazon Web Services Training and Certification", criteria: "Pass the AWS Certified Data Engineer - Associate exam.", skills: ["AWS", "Data Pipelines"] }, "credly");
+eq("record: AWS is a recognised issuer", auto.issuerType, "vendor");
+eq("record: exam not called supervised scores 1", L.marketValue(auto, ROLES, ROLE_INFO, NO_LIVE).checks[1].points, 1);
+eq("record: AWS exam score", L.marketValue(auto, ROLES, ROLE_INFO, NO_LIVE).percent, 83);
+auto = rc({ badgeName: "Star Performer", issuerName: "Sharma Coaching Classes", criteria: "Attend the annual workshop" }, "credly");
+eq("record: unknown issuer", auto.issuerType, "unknown");
+r = L.marketValue(auto, ROLES, ROLE_INFO, NO_LIVE);
+eq("record: unknown issuer + attendance = 0%", r.percent, 0);
+eq("record: says the issuer is not recognised", r.checks[0].reason.includes("not on our list of recognised issuers"), true);
+auto = rc({ badgeName: "Introduction to Front-End Development", issuerName: "Meta", platform: "Coursera" }, "coursera");
+eq("record: a Coursera course is a platform certificate", auto.issuerType, "platform");
+eq("record: shows who offers it", auto.issuer, "Meta, on Coursera");
+eq("record: Coursera rule for how it is earned", auto.assessment, "graded");
+eq("record: Coursera rule has a proof link", L.marketValue(auto, ROLES, ROLE_INFO, NO_LIVE).checks[1].links.length, 1);
+eq("record: web field", auto.roles.join(","), "web");
+auto = rc({ badgeName: "Git and GitHub Basics", issuerName: "IBM", platform: "edX", criteria: "successfully completed and received a passing grade in Git and GitHub Basics" }, "edx");
+eq("record: edX passing grade", auto.assessment, "graded");
+eq("record: edX field", auto.roles.join(","), "dev");
+auto = rc({ badgeName: "Member Badge", issuerName: "Oracle" }, "credly");
+eq("record: nothing said about earning it scores 0", L.marketValue(auto, ROLES, ROLE_INFO, NO_LIVE).checks[1].points, 0);
+eq("record: no field found is scored in the middle", L.marketValue(auto, ROLES, ROLE_INFO, NO_LIVE).checks[2].points, 1);
+const confirmed = L.applyLive(anyG("https://www.credly.com/badges/" + UUID, "yes"),
+  { supported: true, issuer: "credly", exists: true, details: { badgeName: "Member Badge", issuerName: "Oracle", issuedOn: "2025-01-01" } }, auto, CERTS, "2026-10-06");
+eq("record: the issuer's answer confirms it", confirmed.verdict, "Confirmed by the issuer");
 
 (async () => {
   let live = await A.liveCheck("https://www.credly.com/badges/" + UUID, realCredly);
@@ -305,6 +396,39 @@ const realCredly = pretend({
   eq("api: an answer without a badge gives no verdict", live.exists, null);
   live = await A.liveCheck("https://example.com/x", pretend({}));
   eq("api: unsupported link", live.supported, false);
+
+  // what the issuer's record says about the certificate itself (used when it is not in our list)
+  const RICH = "https://www.credly.com/api/v1/obi/v2/issuers/i2/badge_classes/b2";
+  live = await A.liveCheck("https://www.credly.com/badges/" + UUID, pretend({
+    ["https://www.credly.com/api/v1/obi/v2/badge_assertions/" + UUID]: { status: 200, json: { issuedOn: "2025-06-01T00:00:00.000Z", badge: RICH } },
+    [RICH]: { status: 200, json: { name: "<b>Networking</b> Basics", description: "Covers how networks work.",
+      criteria: { id: "https://www.credly.com/org/cisco/badge/networking-basics", narrative: "Assessment: Passing score on the final exam." },
+      tags: ["Networking", "IP Addressing", 42], issuer: { name: "Cisco" } } }
+  }));
+  eq("api: tags in a badge name are removed", live.details.badgeName, "Networking Basics");
+  eq("api: how it is earned is read", live.details.criteria, "Assessment: Passing score on the final exam.");
+  eq("api: skills are read (text only)", live.details.skills.join("|"), "Networking|IP Addressing");
+  eq("api: the badge's public page is kept", live.details.recordUrl, "https://www.credly.com/org/cisco/badge/networking-basics");
+  const COURSE_PAGE = "<html><head><meta property=\"og:title\" content=\"Completion Certificate for Introduction to Front-End Development\">" +
+    "<meta property=\"og:description\" content=\"This certificate verifies my successful completion of Meta&#x27;s &quot;Introduction to Front-End Development&quot; on Coursera\"></head></html>";
+  live = await A.liveCheck("coursera.org/verify/ABCD1234EFGH", pretend({
+    "https://www.coursera.org/api/certificate.v1/pdf/ABCD1234EFGH": { status: 200 },
+    "https://www.coursera.org/account/accomplishments/verify/ABCD1234EFGH": { status: 200, text: COURSE_PAGE }
+  }));
+  eq("api: coursera course name read", live.details.badgeName, "Introduction to Front-End Development");
+  eq("api: coursera partner read", live.details.issuerName, "Meta");
+  eq("api: coursera marked as a platform", live.details.platform, "Coursera");
+  live = await A.liveCheck("coursera.org/verify/ABCD1234EFGH", pretend({ "https://www.coursera.org/api/certificate.v1/pdf/ABCD1234EFGH": { status: 200 } }));
+  eq("api: coursera certificate exists even if its page can't be read", live.exists, true);
+  eq("api: ...but then no course name is made up", live.details.badgeName, undefined);
+  const EDX_ID = "0123456789abcdef0123456789abcdef";
+  const EDX_PAGE = "<p><span class=\"accomplishment-summary copy\">successfully completed and received a passing grade in</span>" +
+    "<span class=\"accomplishment-course\"><span class=\"accomplishment-course-number\">CD0131EN</span>: <span class=\"accomplishment-course-name\">Git and GitHub Basics</span></span>" +
+    "<span class=\"accomplishment-statement-detail copy\">a course of study offered by IBM, an online learning initiative of IBM.</span></p>";
+  live = await A.liveCheck("https://courses.edx.org/certificates/" + EDX_ID, pretend({ ["https://courses.edx.org/certificates/" + EDX_ID]: { status: 200, text: EDX_PAGE } }));
+  eq("api: edx course name read", live.details.badgeName, "Git and GitHub Basics");
+  eq("api: edx organisation read", live.details.issuerName, "IBM");
+  eq("api: edx says a passing grade was needed", live.details.criteria.includes("received a passing grade"), true);
 
   console.log(fails === 0 ? "\nALL PASS" : "\n" + fails + " FAILED");
 })();

@@ -244,7 +244,7 @@ function findInText(text, certs, fakeUnis, methods) {
 
 // is the badge the issuer showed us the same certificate the user typed?
 function sameCert(cert, badgeName, certs) {
-  if (cert.custom) return true;                       // not in our list: nothing to compare with
+  if (cert.custom || cert.auto) return true;          // not in our list: nothing to compare with
   const hit = findCert(badgeName, certs);
   if (hit && hit.id === cert.id) return true;
   const badge = normalize(badgeName);
@@ -430,28 +430,34 @@ function jobsFor(cert, roles, roleInfo) {
 function marketValue(cert, roles, roleInfo, live) {
   const checks = [];
 
+  // a certificate read from the issuer's record (recordCert) brings its own reasons, in the issuer's words
+  const why = cert.why || {};
+
   // check 1: who gives it
   const iss = ISSUER_POINTS[cert.issuerType];
-  checks.push({ name: "Recognition (who gives it)", points: iss[0], max: 2, reason: iss[1] });
+  checks.push({ name: "Recognition (who gives it)", points: iss[0], max: 2, reason: why.issuer || iss[1] });
 
   // check 2: how you earn it
   const as = ASSESS_POINTS[cert.assessment];
-  checks.push({ name: "Proof of skill (how you earn it)", points: as[0], max: 2, reason: as[1] });
+  checks.push({ name: "Proof of skill (how you earn it)", points: as[0], max: 2, reason: why.earned || as[1],
+                links: why.earnedLinks || [] });
 
   // check 3: is it in demand? verified sources from the monthly refresh first, otherwise demand for its jobs
   const jobs = jobsFor(cert, roles, roleInfo);
   const demand = demandSources(cert, live);
   if (cert.aliases.length === 0) {
     checks.push({ name: "Job demand", points: 0, max: 2,
-      reason: cert.custom ? "An unknown issuer - employers are unlikely to ask for it."
-                          : "Not a named credential, so employers can't ask for it." });
+      reason: (cert.custom || cert.auto) ? "An unknown issuer - employers are unlikely to ask for it."
+                                         : "Not a named credential, so employers can't ask for it." });
   } else if (demand !== null) {
     const pts = demand.length >= 2 ? 2 : demand.length;
     checks.push({ name: "Job demand", points: pts, max: 2, src: [],
       reason: demand.length === 0 ? "No verified source calls it in demand."
         : "Called in demand by " + demand.length + " verified source" + (demand.length > 1 ? "s" : "") + "." });
   } else if (jobs.length === 0) {
-    checks.push({ name: "Job demand", points: 1, max: 2, reason: "Depends on the course you pick." });
+    checks.push({ name: "Job demand", points: 1, max: 2,
+      reason: cert.auto ? "We could not tell its job field from the record, so demand is scored in the middle."
+                        : "Depends on the course you pick." });
   } else {
     const best = jobs[0];
     checks.push({ name: "Job demand", points: best.points, max: 2, src: best.info.demand.src,
@@ -637,9 +643,162 @@ function verdictLine(g, v) {
   return { genuine: { level: g.level, text: g.verdict }, worth: worth };
 }
 
+// ---------- 6. any certificate: scored from the issuer's own record, without needing it in our list ----------
+
+// what did the user type in the box: a certificate's name, a web link or an ID?
+const COMMON_ENDINGS = ["com", "org", "net", "in", "io", "edu", "gov", "co", "ac", "app", "dev", "me", "info", "site", "online", "xyz", "ai"];
+
+function kindOfText(text, methods) {
+  const t = (text || "").trim();
+  if (t === "") return "empty";
+  if (!/\s/.test(t)) {
+    const host = hostOf(t);
+    if (host && (/^(https?:\/\/|www\.)/i.test(t) || t.includes("/") || COMMON_ENDINGS.includes(host.split(".").pop()))) return "link";
+    for (const key in methods) {
+      if (methods[key].idRe && new RegExp(methods[key].idRe).test(t)) return "id";
+    }
+  }
+  return "name";
+}
+
+// lowercase words only, with a space at each end: "Front-End / UI" -> " front end ui "
+function plainWords(text) {
+  return " " + String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + " ";
+}
+
+// "threat*" matches any word that starts with "threat"; other words must appear whole
+function hasWord(padded, word) {
+  if (word.endsWith("*")) return padded.includes(" " + word.slice(0, -1));
+  return padded.includes(" " + word + " ");
+}
+
+// which recognised issuer is this? returns its entry in KNOWN_ISSUERS (data/issuers.js), or null
+function knownIssuer(issuerName, badgeText, issuers) {
+  const name = plainWords(issuerName);
+  const all = plainWords(issuerName + " " + (badgeText || ""));
+  for (const entry of issuers) {
+    const where = entry.anywhere ? all : name;
+    if (entry.match.some(m => hasWord(where, m))) return entry;
+  }
+  return null;
+}
+
+// how a certificate is earned, going ONLY by the issuer's own words.
+// returns "proctored" | "graded" | "attendance" | "completion", or null when the words don't say
+function earnedFromText(text) {
+  const t = plainWords(text);
+  if (t.trim() === "") return null;
+  if (/ (proctored|proctoring|invigilated|supervised) /.test(t)) return "proctored";
+  if (/ (exam|exams|examination|assessment|assessments|quiz|quizzes|test|tests|graded|grade|score|project|projects|capstone|lab|labs|assignment|assignments|challenge|challenges) /.test(t)) return "graded";
+  if (/ (attend|attended|attending|attendance|participate|participated|participation|webinar|workshop) /.test(t)) return "attendance";
+  if (/ (complete|completed|completing|completion|finish|finished|watch|watched) /.test(t)) return "completion";
+  return null;
+}
+
+// the job fields a certificate belongs to, from its name, skills and description (at most two)
+function fieldsFromText(text, fieldWords) {
+  const padded = plainWords(text);
+  const scores = [];
+  for (const field in fieldWords) {
+    const hits = fieldWords[field].filter(w => hasWord(padded, w)).length;
+    if (hits > 0) scores.push({ field: field, hits: hits });
+  }
+  scores.sort((a, b) => b.hits - a.hits);
+  return scores.filter(s => s.hits === scores[0].hits).slice(0, 2).map(s => s.field);
+}
+
+// is the certificate on the issuer's record one of the certificates in our list?
+// It must match by name (not loosely) AND come from the same issuer.
+function listedCert(details, certs) {
+  const from = words((details.issuerName || "") + " " + (details.platform || "")).filter(w => w.length >= 3);
+  for (const r of rankCerts(details.badgeName, certs)) {
+    if (r.score < 0.85) break;
+    const theirs = words(r.cert.issuer);
+    if (from.some(w => theirs.includes(w))) return r.cert;
+  }
+  return null;
+}
+
+// verification sites that only ever host ONE kind of certificate in our list, so the link alone tells us
+// which certificate it is (nptel.ac.in is always an NPTEL certificate; redhat.com could be any Red Hat exam)
+const ONE_KIND_SITES = ["nptel", "hackerrank", "kaggle", "fcc", "udemy", "edx", "internshala"];
+
+function certForLink(link, methods, certVerify, certs) {
+  const host = hostOf(link || "");
+  if (!host) return null;
+  for (const key of ONE_KIND_SITES) {
+    if (methods[key] && methods[key].domains.some(d => onDomain(host, d))) {
+      const mine = certs.filter(c => certVerify[c.id] === key);
+      return mine.length === 1 ? mine[0] : null;
+    }
+  }
+  return null;
+}
+
+const EARNED_WORDS = {
+  proctored: "You must pass a supervised exam.",
+  graded: "You pass a test, exam or project. The record does not say that it is supervised.",
+  attendance: "You get it for attending.",
+  completion: "You get it for finishing the course - the record mentions no test."
+};
+
+// build a certificate from what the issuer's record says, so marketValue() can score it.
+// details = the "details" of the live check (api/live.js); site = "credly" | "coursera" | "edx"
+function recordCert(details, site, issuers, fieldWords, courseraSrc) {
+  const name = details.badgeName;
+  const platform = details.platform || "";                 // "Coursera" / "edX" for a course certificate
+  const issuerName = details.issuerName || platform || "the issuer";
+  const said = (details.criteria || details.description || "").slice(0, 240);
+  const why = {};
+  let issuerType, shownIssuer = issuerName;
+
+  // who gives it
+  if (platform) {
+    issuerType = "platform";
+    if (issuerName !== platform) shownIssuer = issuerName + ", on " + platform;
+    why.issuer = "A course certificate on " + platform + ", a well-known learning platform. Anyone can enrol and finish.";
+  } else {
+    const known = knownIssuer(issuerName, (details.criteria || "") + " " + (details.description || ""), issuers);
+    if (!known) {
+      issuerType = "unknown";
+      why.issuer = "\"" + issuerName + "\" is not on our list of recognised issuers yet, so this is scored 0. " +
+        "If it is a well-known organisation, the real value may be higher.";
+    } else {
+      issuerType = known.type;
+      why.issuer = known.type === "vendor" ? known.name + " is on our list of recognised issuers: companies and bodies that own the field they certify."
+        : known.type === "academic" ? known.name + " is on our list of recognised issuers: IIT / IISc courses with their own exam."
+        : known.name + " is a known learning programme, but anyone can enrol and finish.";
+    }
+  }
+
+  // how it is earned
+  let assessment = earnedFromText(said);
+  if (assessment) {
+    why.earned = EARNED_WORDS[assessment] + " The issuer's record says: \"" + said + "\"";
+  } else if (site === "coursera") {
+    assessment = "graded";
+    why.earned = "Coursera course certificates come with required graded assignments, which nobody supervises.";
+    why.earnedLinks = courseraSrc ? [courseraSrc] : [];
+  } else {
+    assessment = "completion";
+    why.earned = "The issuer's record does not say how it is earned, so this is scored 0.";
+  }
+
+  const fields = fieldsFromText([name, name, (details.skills || []).join(" "), details.description || ""].join(" "), fieldWords);
+  return {
+    id: "record", auto: true, name: name, issuer: shownIssuer,
+    issuerType: issuerType, assessment: assessment,
+    costBand: "medium", costNote: "", roles: fields.length > 0 ? fields : ["all"],
+    aliases: issuerType === "unknown" ? [] : [name.toLowerCase()],   // unknown issuer = not a named credential
+    eligibility: null, status: "active", src: [], note: "", why: why,
+    record: { site: site, criteria: details.criteria || "", skills: details.skills || [], url: details.recordUrl || "" }
+  };
+}
+
 if (typeof module !== "undefined") {
   module.exports = { normalize, editDistance, rankCerts, findCert, hostOf, looksLike, matchFakeUni,
                      checkFile, pickLink, checkGenuine, demandSources, marketValue, betterValue,
                      customCert, checkGenuineAny, findInText, sameCert, applyLive,
-                     browseList, compareRows, verdictLine };
+                     browseList, compareRows, verdictLine,
+                     kindOfText, knownIssuer, earnedFromText, fieldsFromText, listedCert, recordCert, certForLink };
 }

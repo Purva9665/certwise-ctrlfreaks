@@ -75,6 +75,9 @@ for some certificates. We found nothing that gives an Indian student both answer
 
 What makes it different:
 
+- **Any certificate, not a fixed list.** Paste a Credly, Coursera or edX link and CertWise reads the
+  certificate's name, its issuer and how it is earned from the issuer's own record, then scores it from that.
+  Our list of 44 only adds hand-checked extras such as the price.
 - **Both answers in one place.** A fake certificate always scores 0%; a genuine ₹9 workshop certificate is
   marked genuine-but-low-value, so students see the difference.
 - **Uses each issuer's own verification.** No blockchain and no partnership needed, so it works today for
@@ -85,6 +88,17 @@ What makes it different:
   keeps a fact only if its exact words are on the page.
 
 ## Features
+
+**Any certificate, from just its link**
+
+- **One box** takes a link, an ID or a name, and says what it recognises while you type.
+- For a **Credly, Coursera or edX link** the certificate does not have to be in our list: the issuer's own
+  record gives its name, issuer, how it is earned and (on Credly) its skills, and the score comes from that.
+- The record is matched to our hand-checked list when it is there; otherwise the **issuer** is looked up in a
+  list of 71 recognised issuers, so one entry covers every certificate that issuer gives.
+- Sites that host only one kind of certificate (NPTEL, Udemy, Internshala, HackerRank, Kaggle, freeCodeCamp)
+  name the certificate from the link alone.
+- For anything else: type the name, or answer **three quick questions**, and it is still scored.
 
 **Is it genuine?**
 
@@ -119,12 +133,13 @@ What makes it different:
 
 **Also**
 
-- **44 certificates** with checked facts, plus a **3-question check for any certificate not in the list**.
+- **44 certificates** with hand-checked facts (price, exam type, eligibility), each with a proof link.
 - **Downloadable PDF report** of every result, with clickable proof links.
+- **Works like an app:** four screens (Check, Browse, How it works, FAQ), suggestions while you type, a
+  progress card while the issuer is asked, your recent checks, and short messages for what just happened.
 - Typo-tolerant search ("aws cloud practitoner" still works).
 - Works on phones, with a **light and dark theme**; no login and no cost.
-- Navigation, a "Questions people ask" section and a link-preview image, so it reads like a finished product.
-- 176 automated tests, run on every push.
+- 248 automated tests, run on every push.
 
 ## Technologies / Tech Stack Used
 
@@ -135,13 +150,13 @@ What makes it different:
 | PDF reading | [pdf.js](https://mozilla.github.io/pdf.js/) 3.11.174 | Reads links and text inside an uploaded PDF |
 | Text reader | [Tesseract.js](https://tesseract.projectnaptha.com/) 5 | OCR for images and scanned PDFs that have no QR code |
 | PDF report | [jsPDF](https://github.com/parallax/jsPDF) 2.5.1 | Writes the downloadable report |
-| Browser APIs | File API, Canvas, `getUserMedia`, `localStorage` | Upload, image handling, the camera scanner and remembering the light / dark choice |
+| Browser APIs | File API, Canvas, `getUserMedia`, `localStorage` | Upload, image handling, the camera scanner, and remembering the theme and your recent checks |
 | Backend | Node.js (built-in `http` module, no framework) | Serves the page and the small API (`/api/health`, `/api/live`) |
-| Issuer records | Credly Open Badges 2.0 records; Coursera and edX certificate pages | The live check with the issuer |
-| Core logic | Plain JavaScript in `logic.js` (edit distance, pattern matching, scoring) | The genuineness check and the market value score |
-| Data | JavaScript data files | 44 certificates, 17 verification methods, job data and UGC's list, with proof links |
+| Issuer records | Credly Open Badges 2.0 records; Coursera and edX certificate pages | The live check with the issuer, and the name, issuer and earning criteria of any certificate |
+| Core logic | Plain JavaScript in `logic.js` (edit distance, pattern matching, scoring) | The genuineness check, the market value score, and scoring a certificate from the issuer's record |
+| Data | JavaScript data files | 44 certificates, 17 verification methods, 71 recognised issuers, job data and UGC's list, with proof links |
 | Data refresh | Gemini API (free key), plus our own quote checker | Monthly update of prices, salaries and demand |
-| Testing | A plain Node.js test file (no test framework) | 176 tests of the logic and the API |
+| Testing | A plain Node.js test file (no test framework) | 248 tests of the logic and the API |
 | Automation | GitHub Actions | Runs the tests on every push; runs the monthly refresh |
 | Hosting | Render (page + server), GitHub Pages (page only), Dockerfile | ₹0 hosting: the full version on Render's free plan and an always-on copy on GitHub Pages |
 
@@ -184,7 +199,7 @@ Then open http://localhost:5174 in your browser. To use another port, set the `P
 npm test
 ```
 
-176 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
+248 tests should end with `ALL PASS`. The tests never contact the real issuer websites.
 
 **Other ways**
 
@@ -207,6 +222,7 @@ because catching a made-up ID needs the live check)
 | ₹9 workshop | *Can't be verified* and *Low market value*, with higher-value picks |
 | Fake university degree | *Fake university*, with UGC's list as proof |
 | One not in our list | Three questions, then a score marked "from your answers" |
+| Any real Credly, Coursera or edX link, pasted alone | The certificate's name and issuer read from the issuer, *Confirmed by the issuer*, and a score |
 
 To try the upload, drop `tests/sample_text_cert.png` (no QR code) or `tests/sample_qr.pdf` on the page. These are
 made-up sample certificates.
@@ -222,10 +238,11 @@ certwise-ctrlfreaks/
 ├── favicon.svg             The icon in the browser tab
 ├── serve.js                The server: serves the page and the API
 ├── api/
-│   └── live.js             Live check: asks Credly, Coursera or edX about a certificate
+│   └── live.js             Live check: asks Credly, Coursera or edX, and reads what their record says
 ├── data/
 │   ├── certs.js            44 certificates with checked facts and proof links
 │   ├── verify.js           17 official verification methods + UGC's fake university list
+│   ├── issuers.js          71 recognised issuers + the words that tell a certificate's job field
 │   ├── roles.js            Jobs: demand and fresher salary, each with a source
 │   └── live.js             Facts written by the monthly refresh
 ├── refresh/
@@ -234,7 +251,7 @@ certwise-ctrlfreaks/
 │   ├── pages.js            Downloads the source pages
 │   └── verify.js           Keeps a fact only if its exact quote is on the page
 ├── tests/
-│   ├── test_logic.js       176 automated tests
+│   ├── test_logic.js       248 automated tests
 │   └── sample_*            Made-up certificates for trying the upload
 ├── docs/
 │   ├── og-image.png        The picture shown when the link is shared
@@ -294,7 +311,16 @@ on the student's answers.
 
 ![A result in the dark theme](docs/screenshots/12-dark-mode.png)
 
-**11. On a phone**
+**11. Any certificate** — only a Coursera link was pasted. The name, issuer and score come from Coursera's own
+record; the certificate is not in our list.
+
+![A certificate scored from the issuer's record](docs/screenshots/14-any-certificate.png)
+
+**12. Suggestions while you type**
+
+![Suggestions while typing](docs/screenshots/13-suggestions.png)
+
+**13. On a phone**
 
 <img src="docs/screenshots/09-phone.png" alt="CertWise on a phone" width="300">
 
@@ -311,13 +337,15 @@ on the student's answers.
 
 ## Future Scope / Enhancements
 
-- **Live checks for more issuers**, adding each one only after confirming how its public records work.
+- **Read the record from more issuers** (Microsoft Learn, Accredible, Udemy), adding each one only after
+  confirming how its public records work.
+- **A supervised-exam flag per issuer**, so an exam that the record does not call supervised is not scored low.
 - **Bulk and resume check** for placement cells: upload a resume or many certificates and get one table.
 - **Validity check:** show when a certificate expires and what must be renewed.
 - **Signed credentials:** verify Open Badges 3.0 / W3C Verifiable Credentials signatures directly [10][11].
 - **Hindi and Marathi** versions.
 - **Monthly live data** on the page (prices, salaries, demand) once the refresh key is added.
-- **More certificates**, starting with the ones students report through the "report a wrong fact" link.
+- **More recognised issuers**, starting with the ones students report through the "report a wrong fact" link.
 
 ---
 
@@ -354,7 +382,13 @@ If the issuer gives no clear answer, our result is left as it was — an unreada
 the issuer's address itself, so it cannot be pointed at another website. It allows 30 checks a minute per
 address and logs only the issuer and the answer, never the link.
 
-**Not in our list?** (`customCert`, `checkGenuineAny`) The student answers three questions — who issued it, how
+**Not in our list?** (`recordCert`, `listedCert`, `knownIssuer` in `logic.js`) For a Credly, Coursera or edX link the
+server reads the issuer's record and returns only facts about the *certificate*: its name, the issuer, how it is
+earned, and its skills. Recognition comes from our list of recognised issuers, proof of skill from the issuer's
+own words (quoted on the page), and job demand from the field its skills point to. An exam that the record does
+not call supervised scores 1, not 2. An issuer we do not recognise scores 0 and the page says so.
+
+**No link either?** (`customCert`, `checkGenuineAny`) The student answers three questions — who issued it, how
 it was earned, and whether it has a verification link or ID. The same score is worked out from those answers and
 marked *scored from your answers — we could not check those facts ourselves*.
 
@@ -395,10 +429,12 @@ With `npm start` running:
    check runs.
 4. **₹9 workshop** → *Can't be verified* and *Low market value* → higher-value picks.
 5. **Fake university degree** → *Fake university* (UGC list, with proof).
-6. **One not in our list** → answer the 3 questions → a score marked as based on your answers.
-7. **Browse** → pick *Data Analyst* → tick *PL-300* and *Google Data Analytics* → the side-by-side table shows
+6. **Paste only a link** to a real Coursera, edX or Credly certificate → its name and issuer appear from the
+   issuer's record, with a score, even though it is not in our list.
+7. **One not in our list**, with no link → answer the 3 questions → a score marked as based on your answers.
+8. **Browse** → pick *Data Analyst* → tick *PL-300* and *Google Data Analytics* → the side-by-side table shows
    why one scores 100% and the other 67%.
-8. **Download report** on any result. Switch the **dark theme** from the top bar. On a phone: **Scan the QR code
+9. **Download report** on any result. Switch the **dark theme** from the top bar. On a phone: **Scan the QR code
    with your camera**.
 
 ## Questions and answers
@@ -408,6 +444,9 @@ With `npm start` running:
   check UGC's list. The holder's name is always confirmed on the issuer's page — we never claim "100% genuine".
 - **How is this different from the SIH25029 projects?** They check genuineness only, mostly for degree
   documents. We add the market value score and use each issuer's own verification, with no partnership needed.
+- **Do you only cover the certificates in your list?** No. For Credly, Coursera and edX links the certificate is
+  read from the issuer's own record, and any other certificate can be scored from three answers. The list of 44
+  only adds hand-checked facts such as the price.
 - **Why is a genuine certificate scored low?** Genuine is not the same as valuable: a real ₹9 workshop
   certificate has no exam and no recognised issuer.
 - **Is the upload safe?** The file never leaves the browser. Only the certificate's link is sent for a live check.

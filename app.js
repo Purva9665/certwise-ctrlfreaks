@@ -42,7 +42,10 @@ const ICONS = {
   edit: "<path d='M12 20h9'/><path d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'/>",
   moon: "<path d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/>",
   sun: "<circle cx='12' cy='12' r='5'/><line x1='12' y1='1' x2='12' y2='3'/><line x1='12' y1='21' x2='12' y2='23'/><line x1='4.22' y1='4.22' x2='5.64' y2='5.64'/><line x1='18.36' y1='18.36' x2='19.78' y2='19.78'/><line x1='1' y1='12' x2='3' y2='12'/><line x1='21' y1='12' x2='23' y2='12'/><line x1='4.22' y1='19.78' x2='5.64' y2='18.36'/><line x1='18.36' y1='5.64' x2='19.78' y2='4.22'/>",
-  columns: "<path d='M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18'/>"
+  columns: "<path d='M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18'/>",
+  search: "<circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/>",
+  clock: "<circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/>",
+  file: "<path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/>"
 };
 
 function icon(name) {
@@ -90,9 +93,10 @@ function factHtml(f, showValue) {
 
 function setup() {
   $("checkBtn").addEventListener("click", () => runCheck(true));
-  for (const id of ["certInput", "linkInput", "issuerInput"]) {
+  for (const id of ["linkInput", "issuerInput"]) {
     $(id).addEventListener("keydown", e => { if (e.key === "Enter") runCheck(true); });
   }
+  setupSmartBox();
 
   // example chips
   for (const a of document.querySelectorAll(".try")) {
@@ -101,7 +105,9 @@ function setup() {
       $("certInput").value = a.dataset.cert;
       $("linkInput").value = a.dataset.link || "";
       $("issuerInput").value = a.dataset.issuer || "";
+      $("moreBox").open = $("linkInput").value !== "" || $("issuerInput").value !== "";
       fileNote("");
+      showDetect();
       runCheck(true);
     });
   }
@@ -134,15 +140,269 @@ function setup() {
   // browse and compare
   setupBrowse();
 
+  // the navigation opens a view, like the screens of an app
+  setupViews();
+  showRecent();
+
   // numbers in the header and footer come straight from our data files
   const ways = Object.keys(VERIFY_METHODS).filter(k => VERIFY_METHODS[k].domains.length > 0).length;
-  $("statCerts").textContent = CERTS.length;
-  $("statWays").textContent = ways;
-  $("statFake").textContent = FAKE_UNIS.length;
+  countTo($("statCerts"), CERTS.length);
+  countTo($("statWays"), ways);
+  countTo($("statFake"), FAKE_UNIS.length);
   $("teamLine").textContent = TEAM;
-  $("dataInfo").textContent = "Our list has " + CERTS.length + " certificates and " + ways +
-    " official ways of verifying them. Live facts last refreshed: " +
+  $("dataInfo").textContent = "Hand-checked facts: " + CERTS.length + " certificates. Recognised issuers for any other certificate: " +
+    KNOWN_ISSUERS.length + ". Official ways of verifying: " + ways + ". Live facts last refreshed: " +
     (LIVE_DATA.refreshedOn || "not yet") + ".";
+}
+
+// ---------- views: the page works like an app with four screens ----------
+
+const VIEWS = ["check", "browse", "how", "faq"];
+
+function setView(name, remember) {
+  if (!VIEWS.includes(name)) name = "check";
+  if (document.body.dataset.view !== name) {
+    document.body.dataset.view = name;
+    window.scrollTo(0, 0);
+  }
+  for (const a of document.querySelectorAll(".nav-links a[data-go]")) a.classList.toggle("on", a.dataset.go === name);
+  if (remember && location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+}
+
+function setupViews() {
+  for (const a of document.querySelectorAll("[data-go]")) {
+    a.addEventListener("click", e => {
+      e.preventDefault();
+      setView(a.dataset.go, true);
+    });
+  }
+  window.addEventListener("hashchange", () => setView(location.hash.slice(1), false));
+  setView(location.hash.slice(1), false);
+}
+
+// ---------- small things that make the page feel alive ----------
+
+const calm = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// a number that counts up to its value
+function countTo(el, target) {
+  if (calm()) {
+    el.textContent = target;
+    return;
+  }
+  const start = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - start) / 900);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - t, 3)));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  el.textContent = "0";
+  requestAnimationFrame(step);
+}
+
+// a short message that slides in at the bottom and goes away by itself
+function toast(text) {
+  const note = document.createElement("div");
+  note.className = "toast";
+  note.textContent = text;
+  $("toasts").appendChild(note);
+  setTimeout(() => note.classList.add("gone"), 2600);
+  setTimeout(() => note.remove(), 3100);
+}
+
+function scrollToResult() {
+  $("result").scrollIntoView({ behavior: calm() ? "auto" : "smooth", block: "start" });
+}
+
+// ---------- the smart box: it takes a link, an ID or a name ----------
+
+// what is in the form right now
+function readForm() {
+  const typed = $("certInput").value.trim();
+  const kind = kindOfText(typed, VERIFY_METHODS);
+  const inBox = kind === "link" || kind === "id";
+  return { name: inBox ? "" : typed, link: inBox ? typed : $("linkInput").value.trim(), issuer: $("issuerInput").value.trim() };
+}
+
+const HINTS = [
+  "Paste a link or ID, or type the certificate's name",
+  "https://www.credly.com/badges/...",
+  "AWS Cloud Practitioner",
+  "coursera.org/verify/...",
+  "140-123-456  (a Red Hat ID)",
+  "NPTEL"
+];
+
+let suggestAt = -1;      // which suggestion the arrow keys are on (-1 = none)
+
+function setupSmartBox() {
+  const box = $("certInput");
+  box.addEventListener("input", () => { showDetect(); showSuggest(); });
+  box.addEventListener("focus", showSuggest);
+  box.addEventListener("blur", () => setTimeout(hideSuggest, 150));     // let a click on a suggestion land first
+  box.addEventListener("keydown", e => {
+    const rows = $("suggest").querySelectorAll(".sg");
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && rows.length > 0) {
+      e.preventDefault();
+      if (e.key === "ArrowDown") suggestAt = (suggestAt + 1) % rows.length;
+      else suggestAt = suggestAt <= 0 ? rows.length - 1 : suggestAt - 1;
+      rows.forEach((row, i) => row.classList.toggle("on", i === suggestAt));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (suggestAt >= 0 && rows[suggestAt]) rows[suggestAt].click();
+      else runCheck(true);
+    } else if (e.key === "Escape") {
+      hideSuggest();
+    }
+  });
+  $("linkInput").addEventListener("input", showDetect);
+
+  // the hint inside the empty box changes, to show the three things it accepts
+  let hint = 0;
+  setInterval(() => {
+    if (box.value !== "" || document.activeElement === box) return;
+    hint = (hint + 1) % HINTS.length;
+    box.placeholder = HINTS[hint];
+  }, 3500);
+}
+
+// certificates from our list that match what is being typed
+function showSuggest() {
+  const text = $("certInput").value.trim();
+  const box = $("suggest");
+  suggestAt = -1;
+  if (text.length < 2 || kindOfText(text, VERIFY_METHODS) !== "name") {
+    hideSuggest();
+    return;
+  }
+  const hits = rankCerts(text, CERTS).filter(r => r.score >= 0.34).slice(0, 6);
+  let html = "";
+  for (const r of hits) {
+    const v = marketValue(r.cert, ROLES, ROLE_INFO, LIVE_DATA);
+    html += "<div class='sg' role='option' data-name='" + esc(r.cert.name) + "'><span class='grow'><b>" + esc(r.cert.name) +
+      "</b><span class='small'> · " + esc(r.cert.issuer) + "</span></span>" +
+      "<span class='pill " + v.level + "'>" + LEVEL_WORD[v.level] + " · " + v.percent + "%</span></div>";
+  }
+  const exact = hits.length > 0 && normalize(hits[0].cert.name) === normalize(text);
+  if (!exact) {
+    html += "<div class='sg other' role='option' data-name=''>" + icon("search") + "<span class='grow'>Check <b>“" + esc(text) + "”</b>" +
+      (hits.length === 0 ? " - it is not in our list, and that is fine" : " as typed") + "</span></div>";
+  }
+  box.innerHTML = html;
+  box.classList.remove("hidden");
+  $("certInput").setAttribute("aria-expanded", "true");
+  for (const row of box.querySelectorAll(".sg")) {
+    row.addEventListener("mousedown", e => e.preventDefault());         // keep the typing box in focus
+    row.addEventListener("click", () => {
+      if (row.dataset.name) $("certInput").value = row.dataset.name;
+      showDetect();
+      runCheck(true);
+    });
+  }
+}
+
+function hideSuggest() {
+  $("suggest").classList.add("hidden");
+  $("suggest").innerHTML = "";
+  $("certInput").setAttribute("aria-expanded", "false");
+  suggestAt = -1;
+}
+
+// say what a typed link or ID looks like, while it is being typed:
+// under the big box when the link is there, under the "More details" field when it is there
+function showDetect() {
+  const typed = $("certInput").value.trim();
+  const kind = kindOfText(typed, VERIFY_METHODS);
+  const inBox = kind === "link" || kind === "id";
+  describeLink(inBox ? typed : "", $("detect"));
+  describeLink(inBox ? "" : $("linkInput").value.trim(), $("detectLink"));
+}
+
+function describeLink(link, box) {
+  if (link === "") {
+    box.innerHTML = "";
+    return;
+  }
+  const g = checkGenuineAny({ link: link, issuer: "" }, "yes", VERIFY_METHODS, FAKE_UNIS);
+  const host = hostOf(link);
+  let text;
+  if (g.level === "green") {
+    text = host + " is an official verification site" +
+      (LIVE_LINK.test(link) && apiReady ? " - we will ask the issuer for its record" : "");
+  } else if (g.level === "red") {
+    text = "Careful: " + host + " looks like a copy of a real verification site";
+  } else if (host) {
+    text = "We don't know " + host + " as a verification site";
+  } else {
+    text = "This looks like a certificate ID";
+  }
+  box.innerHTML = "<span class='detect-chip " + g.level + "'>" + icon(LEVEL_ICON[g.level]) + esc(text) + "</span>";
+}
+
+// ---------- recent checks (kept only in this browser) ----------
+
+const RECENT_KEY = "certwise-recent";
+
+function loadRecent() {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    return Array.isArray(list) ? list.filter(r => r && typeof r.label === "string") : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// remember the newest result (not the ones scored from three answers - those can't be re-run by themselves)
+function saveRecent() {
+  if (!last || last.cert.custom) return;
+  const entry = {
+    label: last.cert.name, name: last.typed || "", link: last.input.link, issuer: last.input.issuer,
+    level: last.g.level, percent: last.g.level === "red" || !last.v ? 0 : last.v.percent
+  };
+  const same = r => r.label === entry.label && r.link === entry.link && r.issuer === entry.issuer;
+  const list = [entry].concat(loadRecent().filter(r => !same(r))).slice(0, 6);
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+  } catch (e) {
+    return;                       // storage is blocked: just don't keep a list
+  }
+  showRecent();
+}
+
+function showRecent() {
+  const list = loadRecent();
+  const box = $("recentBox");
+  box.classList.toggle("hidden", list.length === 0);
+  if (list.length === 0) {
+    box.innerHTML = "";
+    return;
+  }
+  let html = "<div class='recent-head'>" + icon("clock") + "<b>Recent checks</b><span class='small grow'>kept only in this browser</span>" +
+    "<button type='button' id='recentClear' class='linkbtn'>Clear</button></div><div class='recent-list'>";
+  list.forEach((r, i) => {
+    html += "<a href='#' class='rc' data-i='" + i + "'><span class='dot-level " + esc(r.level) + "'></span>" +
+      "<span class='rc-name'>" + esc(r.label) + "</span><span class='rc-val'>" + Number(r.percent) + "%</span></a>";
+  });
+  box.innerHTML = html + "</div>";
+  $("recentClear").addEventListener("click", () => {
+    try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* nothing was kept */ }
+    showRecent();
+    toast("Recent checks cleared");
+  });
+  for (const a of box.querySelectorAll(".rc")) {
+    a.addEventListener("click", e => {
+      e.preventDefault();
+      const r = list[Number(a.dataset.i)];
+      // a result that came from a link alone goes back into the big box as that link
+      $("certInput").value = r.name || r.link || r.label;
+      $("linkInput").value = r.name ? (r.link || "") : "";
+      $("issuerInput").value = r.issuer || "";
+      $("moreBox").open = $("linkInput").value !== "" || $("issuerInput").value !== "";
+      fileNote("");
+      showDetect();
+      runCheck(true);
+    });
+  }
 }
 
 // ---------- light / dark ----------
@@ -224,6 +484,7 @@ function toggleCompare(id, on) {
     box.checked = compareIds.includes(box.dataset.id);
   }
   showCompare();
+  if (compareIds.length === 1 && on) toast("Picked 1 of 2 - tick one more to compare");
   if (compareIds.length === 2) $("compareBox").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
@@ -300,11 +561,24 @@ function readFile(file) {
   else readImage(file);
 }
 
-// put the link we found into the form and run the check
+// put the link we found into the form and run the check.
+// A name already typed stays; otherwise the link goes into the big box and the issuer's record names the certificate
+function placeLink(link) {
+  const typed = $("certInput").value.trim();
+  if (typed !== "" && kindOfText(typed, VERIFY_METHODS) === "name") {
+    $("linkInput").value = link;
+    $("moreBox").open = true;
+  } else {
+    $("certInput").value = link;
+  }
+}
+
 function useLink(link, note) {
-  $("linkInput").value = link;
+  placeLink(link);
   fileNote(note);
-  if ($("certInput").value.trim() !== "") runCheck(true);
+  toast(note);
+  showDetect();
+  runCheck(true);
 }
 
 // fill the form from what we could read on the certificate.
@@ -312,22 +586,27 @@ function useLink(link, note) {
 // returns false when nothing useful was found
 function fillFrom(found, qrLink, where) {
   const got = [];
-  if (found.certId && $("certInput").value.trim() === "") {
+  const typed = $("certInput").value.trim();
+  const named = typed !== "" && kindOfText(typed, VERIFY_METHODS) === "name";
+  if (found.certId && !named) {
     $("certInput").value = CERTS.find(c => c.id === found.certId).name;
     got.push("the certificate's name");
   }
   const link = qrLink || found.link || found.id;
   if (link) {
-    $("linkInput").value = link;
+    placeLink(link);
     got.push(qrLink ? "its QR code" : (found.link ? "its link" : "its ID"));
   }
   if (found.fakeUni && $("issuerInput").value.trim() === "") {
     $("issuerInput").value = found.fakeUni.split(",")[0];
+    $("moreBox").open = true;
     got.push("the institute");
   }
   if (got.length === 0) return false;
   fileNote("Read from the " + where + ": " + got.join(", ") + ".");
-  if ($("certInput").value.trim() !== "") runCheck(true);
+  toast("Read from the " + where + ": " + got.join(", "));
+  showDetect();
+  runCheck(true);
   return true;
 }
 
@@ -523,30 +802,146 @@ function stopCamera() {
 let last = null;   // the newest result, kept for "Download report"
 
 function runCheck(scroll) {
-  const query = $("certInput").value.trim();
-  const input = { link: $("linkInput").value.trim(), issuer: $("issuerInput").value.trim() };
+  const form = readForm();
+  const input = { link: form.link, issuer: form.issuer };
   const out = $("result");
   last = null;
+  checkNo++;                                  // an older check that is still waiting for an issuer is dropped
+  setView("check", true);
+  hideSuggest();
 
-  if (query === "") {
-    out.innerHTML = "<section class='box result'><p>Type the certificate's name first.</p></section>";
+  if (form.name === "" && form.link === "" && form.issuer === "") {
+    out.innerHTML = "<section class='box result'><p>Paste the certificate's link or ID, or type its name.</p></section>";
     return;
   }
 
-  const cert = findCert(query, CERTS);
+  if (form.name === "") {
+    runFromLink(input, scroll, "");           // no name typed: let the link tell us which certificate it is
+    return;
+  }
+
+  const cert = findCert(form.name, CERTS);
+  if (!cert && LIVE_LINK.test(input.link)) {
+    runFromLink(input, scroll, form.name);    // not in our list, but the issuer's own record can describe it
+    return;
+  }
   if (!cert) {
-    out.innerHTML = notFoundHtml(query);
-    $("customBtn").addEventListener("click", () => runCustom(query));
-    if (input.issuer && matchFakeUni(input.issuer, FAKE_UNIS)) runCustom(query);   // a fake university needs no answers
+    askAbout(form.name, input, null, "");
   } else {
     const g = checkGenuine(cert, input, VERIFY_METHODS, CERT_VERIFY, FAKE_UNIS);
     const v = marketValue(cert, ROLES, ROLE_INFO, LIVE_DATA);
-    last = { cert: cert, g: g, v: v, input: input };
+    last = { cert: cert, g: g, v: v, input: input, typed: cert.name };
     showResult();
     askIssuer();
   }
   wirePicks();
-  if (scroll) out.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (scroll) scrollToResult();
+}
+
+// we can't tell which certificate this is (or it is not in our list and has no readable record):
+// show what the link tells us, then ask for its name or three quick answers.
+// g = the genuineness result to show first, or null; why = one line saying why we are asking
+function askAbout(label, input, g, why) {
+  $("result").innerHTML = notFoundHtml(label, g, why, input.link !== "");
+  $("customBtn").addEventListener("click", () => runCustom(label));
+  if ($("whichBtn")) {
+    const useName = () => {
+      const name = $("whichInput").value.trim();
+      if (name === "") return;
+      // the link moves under "More details" and the name takes the big box
+      if (input.link !== "") {
+        $("linkInput").value = input.link;
+        $("moreBox").open = true;
+      }
+      $("certInput").value = name;
+      showDetect();
+      runCheck(true);
+    };
+    $("whichBtn").addEventListener("click", useName);
+    $("whichInput").addEventListener("keydown", e => { if (e.key === "Enter") useName(); });
+  }
+  if (input.issuer && matchFakeUni(input.issuer, FAKE_UNIS)) runCustom(label);   // a fake university needs no answers
+  wirePicks();
+}
+
+// no certificate from our list to go by: ask the issuer what this link is a record of, then score that
+async function runFromLink(input, scroll, typedName) {
+  const mine = checkNo;
+  const host = hostOf(input.link);
+  const label = typedName || (host ? "Certificate at " + host : "This certificate");
+  const g0 = checkGenuineAny(input, input.link !== "" ? "yes" : "", VERIFY_METHODS, FAKE_UNIS);
+
+  // some sites only ever host one kind of certificate we list (nptel.ac.in, ude.my...): the link names it
+  const kind = typedName ? null : certForLink(input.link, VERIFY_METHODS, CERT_VERIFY, CERTS);
+  const useKind = () => {
+    last = { cert: kind, g: checkGenuine(kind, input, VERIFY_METHODS, CERT_VERIFY, FAKE_UNIS),
+             v: marketValue(kind, ROLES, ROLE_INFO, LIVE_DATA), input: input, typed: "" };
+    showResult();
+    askIssuer();
+  };
+
+  if (g0.level !== "green" || !LIVE_LINK.test(input.link)) {
+    // a copy-cat site, a site we don't know, an ID, or an issuer we can't ask
+    if (kind) useKind();
+    else askAbout(label, input, typedName ? null : g0, "");
+    if (scroll) scrollToResult();
+    return;
+  }
+
+  $("result").innerHTML = waitingHtml(input.link);
+  if (scroll) scrollToResult();
+  await apiCheck;
+  if (mine !== checkNo) return;
+  if (!apiReady) {
+    if (kind) useKind();
+    else askAbout(label, input, g0, "This copy of CertWise has no server, so we could not read the certificate's name from the issuer.");
+    return;
+  }
+
+  let live = null;
+  try {
+    const res = await fetch("api/live", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ link: input.link })       // only the link is sent - never the file
+    });
+    live = res.ok ? await res.json() : null;
+  } catch (e) {
+    live = null;
+  }
+  if (mine !== checkNo) return;
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (live && live.supported && live.exists === false) {
+    // the issuer has no record: there is no certificate to name or to score
+    const stub = { id: "unknown", unknown: true, name: typedName || "Certificate at " + SITE_NAME[live.issuer],
+                   issuer: SITE_NAME[live.issuer], custom: false, src: [], costNote: "", roles: [], aliases: [] };
+    last = { cert: stub, g: applyLive(g0, live, stub, CERTS, today), v: null, input: input, typed: typedName };
+    showResult();
+    return;
+  }
+
+  if (live && live.exists === true && live.details && live.details.badgeName) {
+    // is it one of the certificates we have hand-checked facts for? otherwise score it from the record itself
+    const listed = listedCert(live.details, CERTS);
+    const cert = listed || recordCert(live.details, live.issuer, KNOWN_ISSUERS, FIELD_WORDS, COURSERA_GRADED_SRC);
+    const first = listed ? checkGenuine(listed, input, VERIFY_METHODS, CERT_VERIFY, FAKE_UNIS) : g0;
+    last = { cert: cert, g: applyLive(first, live, cert, CERTS, today),
+             v: marketValue(cert, ROLES, ROLE_INFO, LIVE_DATA), input: input, typed: "" };
+    showResult();
+    return;
+  }
+
+  // the issuer confirmed the link but gave no name, or did not answer
+  if (kind) {
+    useKind();
+    return;
+  }
+  const stub = { custom: true, name: label, aliases: [] };
+  const seen = live ? applyLive(g0, live, stub, CERTS, today) : g0;
+  askAbout(label, input, seen, live && live.exists === true
+    ? "The issuer confirmed this certificate exists, but its record did not give us the certificate's name."
+    : "The issuer did not answer just now, so we checked the link only.");
 }
 
 // draw the newest result (last) - in the main box, or under the three questions for an unlisted certificate
@@ -555,8 +950,19 @@ function showResult() {
   if (last.cert.custom) $("customResult").innerHTML = html;
   else $("result").innerHTML = "<section class='box result'>" + html + "</section>";
   $("reportBtn").addEventListener("click", downloadReport);
+  if ($("useRecord")) {
+    // the record is for another certificate: check that one, straight from the link
+    $("useRecord").addEventListener("click", e => {
+      e.preventDefault();
+      $("certInput").value = last.input.link;
+      $("linkInput").value = "";
+      showDetect();
+      runCheck(true);
+    });
+  }
   wirePicks();
   countUp();
+  saveRecent();
 }
 
 // the percent inside each ring counts up while the ring fills
@@ -651,6 +1057,21 @@ function stripHtml(g, v) {
   return "<div class='strip'>" + part("Genuine?", line.genuine) + part("Worth?", line.worth) + "</div>";
 }
 
+const SITE_NAME = { credly: "Credly", coursera: "Coursera", edx: "edX" };
+
+// shown while the issuer is being asked
+function waitingHtml(link) {
+  const site = /credly|youracclaim/i.test(link) ? "Credly" : (/coursera/i.test(link) ? "Coursera" : "edX");
+  return "<section class='box result waiting'><div class='result-head'><div class='tile'><span class='spinner'></span></div>" +
+    "<div class='grow'><h3>Asking " + site + " about this certificate</h3>" +
+    "<div class='small'>Only the link is sent - never your file.</div></div></div>" +
+    "<ol class='steps'>" +
+    "<li class='done'>" + icon("check") + "<span>The link is on " + esc(hostOf(link)) + ", an official verification site</span></li>" +
+    "<li class='now'><span class='spinner small'></span><span>Reading " + site + "'s own record: the certificate's name, issuer and how it is earned</span></li>" +
+    "<li>" + icon("award") + "<span>Scoring it from what the record says</span></li>" +
+    "</ol></section>";
+}
+
 // the two answer panels with a heading and the report button
 function resultHtml(cert, g, v) {
   return "<div class='result-head'><div class='tile'>" + icon("award") + "</div>" +
@@ -658,6 +1079,8 @@ function resultHtml(cert, g, v) {
     "<button id='reportBtn' class='ghost'>" + icon("download") + " Download report</button></div>" +
     (cert.custom ? "<div class='warn'>" + icon("edit") + "<span>This certificate is not in our list, so it is scored from " +
       "<b>your answers</b>. We could not check those facts ourselves.</span></div>" : "") +
+    (cert.record ? "<div class='info'>" + icon("check") + "<span>This certificate is not in our list. We read it from <b>" +
+      esc(SITE_NAME[cert.record.site]) + "'s own record</b> and scored it from that.</span></div>" : "") +
     stripHtml(g, v) +
     "<div class='two'>" + genuineHtml(cert, g) + valueHtml(cert, v, g) + "</div>";
 }
@@ -683,20 +1106,37 @@ const QUESTIONS = [
   ] }
 ];
 
-function notFoundHtml(query) {
-  let html = "<section class='box result'><div class='result-head'><div class='tile'>" + icon("help") + "</div>" +
-    "<div><h3>\"" + esc(query) + "\" is not in our list yet</h3>" +
-    "<div class='small'>Answer 3 quick questions and we will still check it.</div></div></div>";
-  const close = rankCerts(query, CERTS).filter(r => r.score >= 0.3).slice(0, 3);
-  if (close.length > 0) {
-    html += "<div class='chips'>Did you mean: " + close.map(r => "<a href='#' class='pick' data-name='" + esc(r.cert.name) + "'>" +
-      esc(r.cert.name) + "</a>").join(" ") + "</div>";
+// query = what to call the certificate; g = a genuineness result to show first (or null);
+// why = one line saying why we are asking; hasLink = a link or ID was given
+function notFoundHtml(query, g, why, hasLink) {
+  let html = "<section class='box result'><div class='result-head'><div class='tile'>" + icon("help") + "</div>";
+  if (g) {
+    html += "<div><h3>Which certificate is this?</h3>" +
+      "<div class='small'>" + esc(why || "We checked the link. To score it, tell us which certificate it is.") + "</div></div></div>" +
+      "<div class='linkfirst'>" + statusHtml(g.level, g.verdict, g.live ? LIVE_NOTE[g.level] : LEVEL_NOTE[g.level]) + "<ul class='reasons'>";
+    for (const r of g.reasons) html += "<li>" + esc(r) + "</li>";
+    html += "</ul>";
+    if (g.page) html += "<a class='button' href='" + esc(g.page) + "' target='_blank' rel='noopener'>" + icon("open") + " Open the official check</a>";
+    html += "</div><label class='field-label' for='whichInput'>Type the certificate's name</label>" +
+      "<div class='which-row'><input id='whichInput' type='text' class='plain' placeholder='e.g. NPTEL, AZ-900, RHCSA' autocomplete='off'>" +
+      "<button id='whichBtn' type='button' class='ghost'>Use this name</button></div>" +
+      "<p class='small'>Or answer three quick questions and we will still score it:</p>";
+  } else {
+    html += "<div><h3>\"" + esc(query) + "\" is not in our list yet</h3>" +
+      "<div class='small'>" + esc(why || "Answer 3 quick questions and we will still check it.") + "</div></div></div>";
+    const close = rankCerts(query, CERTS).filter(r => r.score >= 0.3).slice(0, 3);
+    if (close.length > 0) {
+      html += "<div class='chips'>Did you mean: " + close.map(r => "<a href='#' class='pick' data-name='" + esc(r.cert.name) + "'>" +
+        esc(r.cert.name) + "</a>").join(" ") + "</div>";
+    }
   }
   html += "<div class='asks3'>";
   QUESTIONS.forEach((q, i) => {
     html += "<fieldset class='q'><legend><span class='num'>" + (i + 1) + "</span> " + esc(q.ask) + "</legend>";
     for (const [value, text] of q.options) {
-      html += "<label class='opt'><input type='radio' name='q_" + q.id + "' value='" + value + "'> " + esc(text) + "</label>";
+      // a link or ID was given, so the answer to "does it have one?" is already yes
+      const ticked = q.id === "hasLink" && value === "yes" && hasLink ? " checked" : "";
+      html += "<label class='opt'><input type='radio' name='q_" + q.id + "' value='" + value + "'" + ticked + "> " + esc(text) + "</label>";
     }
     html += "</fieldset>";
   });
@@ -710,7 +1150,8 @@ function notFoundHtml(query) {
 }
 
 function runCustom(query) {
-  const input = { link: $("linkInput").value.trim(), issuer: $("issuerInput").value.trim() };
+  const form = readForm();
+  const input = { link: form.link, issuer: form.issuer };
   const picked = id => {
     const on = document.querySelector("input[name='q_" + id + "']:checked");
     return on ? on.value : "";
@@ -731,7 +1172,7 @@ function runCustom(query) {
   const cert = customCert(query, input.issuer, answers);
   const g = checkGenuineAny(input, hasLink, VERIFY_METHODS, FAKE_UNIS);
   const v = marketValue(cert, ROLES, ROLE_INFO, LIVE_DATA);
-  last = { cert: cert, g: g, v: v, input: input };
+  last = { cert: cert, g: g, v: v, input: input, typed: query };
   showResult();
   askIssuer();
   $("customResult").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -752,6 +1193,9 @@ function genuineHtml(cert, g) {
   for (const r of g.reasons) html += "<li>" + esc(r) + "</li>";
   html += "</ul>";
   // the live check writes here while it waits; afterwards a small tag shows the answer came from the issuer
+  if (g.verdict === "Real, but a different certificate") {
+    html += "<p><a href='#' id='useRecord'>Check the certificate that is on the record instead</a></p>";
+  }
   html += g.live ? "<div class='livetag'>" + icon("check") + " Live check with the issuer</div>"
                  : "<div id='liveNote' class='small'></div>";
   if (g.page) {
@@ -763,7 +1207,7 @@ function genuineHtml(cert, g) {
     html += "<div class='howbox'><b>How " + esc(cert.issuer) + " certificates are verified:</b> " + esc(g.method.how);
     if (g.method.src.length > 0) html += "<br><b>Proof:</b> " + proofLinks(g.method.src);
     html += "</div>";
-  } else {
+  } else if (!g.live) {
     // a certificate that is not in our list: we don't know how its issuer verifies
     html += "<div class='howbox'><b>Tip:</b> a real certificate almost always has a verification link or ID " +
       "on the issuer's own website. If it has neither, anyone could have made it.</div>";
@@ -803,8 +1247,12 @@ function valueHtml(cert, v, g) {
   if (fake) {
     html += "<div class='gauge-row'>" + gaugeHtml(0, "red") +
       "<div><div class='verdict red-text'>No market value if it is fake</div>" +
-      "<div class='status-sub'>A fake certificate is worth nothing - and showing one can cost you the job.</div></div></div>" +
-      "<p class='small'>For a genuine " + esc(cert.name) + ", the score would be:</p>";
+      "<div class='status-sub'>A fake certificate is worth nothing - and showing one can cost you the job.</div></div></div>";
+    if (!v) {
+      // the issuer has no record, so we don't even know which certificate this link claims to be
+      return html + "<p class='small'>The issuer has no record behind this link, so there is no certificate to score.</p></div>";
+    }
+    html += "<p class='small'>For a genuine " + esc(cert.name) + ", the score would be:</p>";
   }
   html += "<div class='gauge-row'>" + gaugeHtml(v.percent, v.level) +
     "<div><div class='verdict " + v.level + "-text'>" + esc(v.band) + (fake ? " (if genuine)" : "") + "</div>" +
@@ -820,9 +1268,26 @@ function valueHtml(cert, v, g) {
     html += "<div class='check-row'><div class='check-head'><span>" + esc(ch.name) + "</span>" +
       dotsHtml(ch.points, ch.max) + "</div><div class='check-why'>" + esc(ch.reason);
     if (ch.src && ch.src.length > 0) html += "<br>Proof: " + sourceLinks(ch.src);
+    if (ch.links && ch.links.length > 0) html += "<br>Proof: " + proofLinks(ch.links);
     html += "</div></div>";
   }
   html += "</div>";
+
+  // what the issuer's own record lists (only for a certificate we read from the record)
+  if (cert.record) {
+    const hasPage = /^https:\/\//.test(cert.record.url);
+    if (cert.record.skills.length > 0 || hasPage) {
+      html += "<div class='howbox'><b>From the issuer's record</b>";
+      if (cert.record.skills.length > 0) {
+        html += "<div class='skills'>" + cert.record.skills.map(s => "<span class='skill'>" + esc(s) + "</span>").join("") + "</div>";
+      }
+      if (hasPage) {
+        html += "<div><a href='" + esc(cert.record.url) + "' target='_blank' rel='noopener'>Open this badge's public page</a></div>";
+      }
+      html += "</div>";
+    }
+    html += "<div class='fact'>" + icon("tag") + "<div><b>Price:</b> not part of the issuer's record, so it is not shown.</div></div>";
+  }
 
   // price (hand-checked, with proof) + newest verified facts from the monthly refresh
   if (cert.costNote) {
@@ -881,7 +1346,9 @@ function wirePicks() {
       $("certInput").value = a.dataset.name;
       $("linkInput").value = "";
       $("issuerInput").value = "";
+      $("moreBox").open = false;
       fileNote("");
+      showDetect();
       runCheck(true);
     });
   }
@@ -968,6 +1435,7 @@ function reportDoc() {
   if (last.input.link) write("Link / ID checked: " + last.input.link, 9);
   if (last.input.issuer) write("Institute checked: " + last.input.issuer, 9);
   if (cert.custom) write("This certificate is not in our list. It is scored from the user's own answers, which CertWise could not check.", 9, "italic", REPORT_COLOR.amber);
+  if (cert.record) write("This certificate is not in our list. It was read from " + SITE_NAME[cert.record.site] + "'s own record and scored from that.", 9, "italic", REPORT_COLOR.grey);
 
   heading("1. Is it genuine?");
   write(g.verdict, 12, "bold", REPORT_COLOR[g.level]);
@@ -989,6 +1457,12 @@ function reportDoc() {
     return doc;
   }
   if (fake) write("0% - No market value if it is fake.", 12, "bold", REPORT_COLOR.red);
+  if (!v) {
+    write("The issuer has no record behind this link, so there is no certificate to score.", 10);
+    y += 5;
+    write("CertWise checks the link, the ID format, public lists and published facts. It sells no courses and takes no commission.", 8, "italic", [91, 107, 99]);
+    return doc;
+  }
   write((fake ? "For a genuine one: " : "") + v.percent + "% - " + v.band + " (" + v.total + " of " + v.max + " points)", 12, "bold",
         fake ? REPORT_COLOR.grey : REPORT_COLOR[v.level]);
   if (v.warning) write("Note: " + v.warning, 10, "normal", REPORT_COLOR.amber);
@@ -997,6 +1471,7 @@ function reportDoc() {
     write(ch.name + ": " + ch.points + " / " + ch.max, 10, "bold");
     write(ch.reason, 10);
     links("Proof:", srcList(ch.src));
+    if (ch.links) links("Proof:", ch.links);
     y += 1;
   }
   if (cert.costNote) {
@@ -1039,6 +1514,7 @@ async function downloadReport() {
     const name = last.cert.name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 40);
     reportDoc().save("CertWise-report-" + name + ".pdf");
     btn.innerHTML = label;
+    toast("Report saved as a PDF");
   } catch (e) {
     btn.textContent = "Couldn't make the PDF (needs internet)";
   }

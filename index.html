@@ -22,18 +22,18 @@
     } catch (e) { /* storage blocked: stay light */ }
   </script>
 </head>
-<body>
+<body data-view="check">
 
   <nav class="topnav" aria-label="Main">
-    <a class="nav-brand" href="#top">
+    <a class="nav-brand" href="#check" data-go="check">
       <span class="logo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span>
       CertWise
     </a>
     <div class="nav-links">
-      <a href="#check">Check</a>
-      <a href="#browse">Browse</a>
-      <a href="#how">How it works</a>
-      <a href="#faq">FAQ</a>
+      <a href="#check" data-go="check">Check</a>
+      <a href="#browse" data-go="browse">Browse</a>
+      <a href="#how" data-go="how">How it works</a>
+      <a href="#faq" data-go="faq">FAQ</a>
       <button id="themeBtn" type="button" class="theme-btn" aria-label="Switch to dark mode" title="Dark mode"></button>
     </div>
   </nav>
@@ -57,65 +57,76 @@
       </span>
     </div>
     <div class="stats">
-      <div class="stat"><b id="statCerts">-</b><span>certificates covered</span></div>
+      <div class="stat"><b>Any</b><span>certificate can be checked</span></div>
       <div class="stat"><b id="statWays">-</b><span>official ways to verify</span></div>
       <div class="stat"><b id="statFake">-</b><span>fake universities flagged</span></div>
+      <div class="stat"><b id="statCerts">-</b><span>with hand-checked facts</span></div>
     </div>
   </header>
 
   <main>
 
-    <section class="box" id="check">
+    <section class="box view" id="check" data-view="check">
       <h2>Check a certificate</h2>
+      <p class="small lead">Paste the link or ID printed on the certificate, or type its name. It does not have to be in our list.</p>
 
-      <div class="step">
-        <label for="certInput"><span class="num">1</span> Which certificate is it?</label>
-        <div class="field">
+      <div class="smart">
+        <div class="field big">
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input id="certInput" type="text" placeholder="e.g. AWS Cloud Practitioner, NPTEL, RHCSA, AI tools workshop" autocomplete="off">
+          <input id="certInput" type="text" placeholder="Paste a link or ID, or type the certificate's name" autocomplete="off" spellcheck="false"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest" aria-label="Certificate link, ID or name">
+          <button id="checkBtn" class="primary go" type="button">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            <span>Check</span>
+          </button>
         </div>
-        <div class="chips">Try an example:
-          <!-- only shown when the CertWise server is running: catching a made-up ID needs the live check -->
-          <a href="#" class="try live-only hidden" data-cert="AWS Certified Cloud Practitioner" data-link="https://www.credly.com/badges/00000000-0000-0000-0000-000000000000">AWS badge with a made-up ID</a>
-          <a href="#" class="try" data-cert="Google Data Analytics" data-link="https://coursera-verify.com/verify/SAMPLE123">look-alike Coursera link</a>
-          <a href="#" class="try" data-cert="RHCSA" data-link="140-123-456">Red Hat ID</a>
-          <a href="#" class="try" data-cert="AI tools workshop" data-link="">₹9 workshop</a>
-          <a href="#" class="try" data-cert="B.Tech degree certificate" data-link="" data-issuer="Commercial University Ltd., Daryaganj">fake university degree</a>
-          <a href="#" class="try" data-cert="Blockchain Basics certificate" data-link="">one not in our list</a>
-        </div>
+        <div id="suggest" class="suggest hidden" role="listbox"></div>
+      </div>
+      <div id="detect" class="detect" aria-live="polite"></div>
+
+      <div class="chips">Try an example:
+        <!-- only shown when the CertWise server is running: catching a made-up ID needs the live check -->
+        <a href="#" class="try live-only hidden" data-cert="AWS Certified Cloud Practitioner" data-link="https://www.credly.com/badges/00000000-0000-0000-0000-000000000000">AWS badge with a made-up ID</a>
+        <a href="#" class="try" data-cert="Google Data Analytics" data-link="https://coursera-verify.com/verify/SAMPLE123">look-alike Coursera link</a>
+        <a href="#" class="try" data-cert="RHCSA" data-link="140-123-456">Red Hat ID</a>
+        <a href="#" class="try" data-cert="AI tools workshop" data-link="">₹9 workshop</a>
+        <a href="#" class="try" data-cert="B.Tech degree certificate" data-link="" data-issuer="Commercial University Ltd., Daryaganj">fake university degree</a>
+        <a href="#" class="try" data-cert="Blockchain Basics certificate" data-link="">one not in our list</a>
       </div>
 
-      <div class="step">
-        <label for="linkInput"><span class="num">2</span> Verification link or certificate ID <span class="optional">(printed on the certificate - optional)</span></label>
-        <div class="field">
-          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          <input id="linkInput" type="text" placeholder="e.g. https://www.credly.com/badges/...  or  coursera.org/verify/...  or  123-456-789" autocomplete="off">
-        </div>
+      <div class="tools">
         <label class="drop" id="drop" for="qrFile">
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <span><b>Or drop the certificate file here</b> (or click to choose) - we read its QR code or link.<br>
+          <span><b>Drop the certificate here</b> (or click to choose) - we read its QR code, link or text.<br>
             <span class="small">PNG, JPG, WEBP or PDF · up to <span id="maxMb">5</span> MB</span></span>
           <input id="qrFile" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.png,.jpg,.jpeg,.webp,.pdf">
         </label>
         <button id="camBtn" type="button" class="ghost">
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          Scan the QR code with your camera
+          Scan a QR code
         </button>
-        <span id="qrStatus"></span>
       </div>
+      <span id="qrStatus"></span>
 
-      <div class="step">
-        <label for="issuerInput"><span class="num">3</span> College / institute that issued it <span class="optional">(optional - checked against UGC's fake university list)</span></label>
-        <div class="field">
-          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/></svg>
-          <input id="issuerInput" type="text" placeholder="e.g. the university or institute name on the certificate" autocomplete="off">
+      <details class="more" id="moreBox">
+        <summary>More details <span class="optional">(optional)</span></summary>
+        <div class="step">
+          <label for="linkInput">Verification link or certificate ID <span class="optional">(if you typed a name above)</span></label>
+          <div class="field">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <input id="linkInput" type="text" placeholder="e.g. https://www.credly.com/badges/...  or  coursera.org/verify/...  or  123-456-789" autocomplete="off" spellcheck="false">
+          </div>
+          <div id="detectLink" class="detect" aria-live="polite"></div>
         </div>
-      </div>
+        <div class="step">
+          <label for="issuerInput">College / institute that issued it <span class="optional">(checked against UGC's fake university list)</span></label>
+          <div class="field">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M9 21v-6h6v6"/></svg>
+            <input id="issuerInput" type="text" placeholder="e.g. the university or institute name on the certificate" autocomplete="off">
+          </div>
+        </div>
+      </details>
 
-      <button id="checkBtn" class="primary">
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-        Check certificate
-      </button>
       <p class="small private">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Your files never leave your browser. For a live check, only the certificate's link is sent to the issuer.
@@ -123,9 +134,11 @@
       <p class="small private" id="apiInfo"></p>
     </section>
 
-    <div id="result"></div>
+    <section class="recent view hidden" id="recentBox" data-view="check" aria-label="Recent checks"></section>
 
-    <section class="box" id="browse">
+    <div id="result" class="view" data-view="check"></div>
+
+    <section class="box view" id="browse" data-view="browse">
       <h2>Browse and compare</h2>
       <p class="small">Every certificate in our list, scored the same way. Pick a field, then tick two certificates to compare them side by side.</p>
       <div class="filters" id="fieldChips" role="group" aria-label="Field"></div>
@@ -142,7 +155,7 @@
       <div class="cards" id="cards"></div>
     </section>
 
-    <section class="box" id="how">
+    <section class="box view" id="how" data-view="how">
       <h2>How we check</h2>
       <h4>1. Genuine?</h4>
       <div class="grid2">
@@ -184,14 +197,14 @@
         <tr><td>Job demand</td><td>In demand (verified sources or hiring reports)</td><td>Some demand / depends on the course</td><td>Not a credential employers ask for</td></tr>
       </table>
       <p class="small">70% or more = High market value · 45-69% = Medium · below 45% = Low. We also show the price and the fresher salary of the jobs it leads to, each with its source.</p>
-      <p class="small"><b>Not in our list?</b> Answer three quick questions (who issued it, how it was earned, whether it has a verification link) and we score it the same way - clearly marked as based on your answers.
+      <p class="small"><b>Not in our list?</b> For a Credly, Coursera or edX link we read the certificate's name, issuer and how it is earned from the issuer's own record, and score it from that. For anything else, answer three quick questions (who issued it, how it was earned, whether it has a verification link) and we score it the same way - clearly marked as based on your answers.
         <b>Need proof of the check?</b> Every result has a "Download report" button that saves a PDF with all the proof links.</p>
       <p class="small"><b>No made-up facts:</b> every price, salary and demand line links to its source. Prices and salaries are
         refreshed every month by our software, which keeps a fact only if its exact quote is on the source page.</p>
       <p class="small" id="dataInfo"></p>
     </section>
 
-    <section class="box" id="faq">
+    <section class="box view" id="faq" data-view="faq">
       <h2>Questions people ask</h2>
       <details class="faq">
         <summary>Can CertWise prove that a certificate is genuine?</summary>
@@ -211,7 +224,7 @@
       </details>
       <details class="faq">
         <summary>My certificate is not in the list. Can I still check it?</summary>
-        <p>Yes. Answer three quick questions - who issued it, how it was earned and whether it has a verification link - and it is scored the same way, clearly marked as based on your answers.</p>
+        <p>Yes. Paste its link: for Credly, Coursera and edX we read the certificate's name, its issuer and how it is earned straight from the issuer's record, and score it from that (this needs the CertWise server). For any other certificate, answer three quick questions - who issued it, how it was earned and whether it has a verification link - and it is scored the same way, clearly marked as based on your answers.</p>
       </details>
       <details class="faq">
         <summary>Does CertWise sell courses or take commission?</summary>
@@ -250,11 +263,14 @@
     </div>
   </div>
 
+  <div id="toasts" aria-live="polite"></div>
+
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="data/certs.js"></script>
   <script src="data/verify.js"></script>
   <script src="data/roles.js"></script>
   <script src="data/live.js"></script>
+  <script src="data/issuers.js"></script>
   <script src="logic.js"></script>
   <script src="app.js"></script>
 </body>
