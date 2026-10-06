@@ -106,10 +106,7 @@ function setup() {
   for (const a of document.querySelectorAll(".try")) {
     a.addEventListener("click", e => {
       e.preventDefault();
-      $("certInput").value = a.dataset.cert;
-      $("linkInput").value = a.dataset.link || "";
-      $("issuerInput").value = a.dataset.issuer || "";
-      $("moreBox").open = $("linkInput").value !== "" || $("issuerInput").value !== "";
+      fillForm(a.dataset.cert, a.dataset.link || "", a.dataset.issuer || "");
       fileNote("");
       showDetect();
       runCheck(true);
@@ -200,10 +197,7 @@ function openHash() {
     return;
   }
   // a shared result is never shown as it was: the same check is run again, here and now
-  $("certInput").value = shared.name || shared.link;
-  $("linkInput").value = shared.name ? shared.link : "";
-  $("issuerInput").value = shared.issuer;
-  $("moreBox").open = $("linkInput").value !== "" || shared.issuer !== "";
+  fillForm(shared.name || shared.link, shared.name ? shared.link : "", shared.issuer);
   showDetect();
   runCheck(true);
 }
@@ -278,6 +272,35 @@ function readForm() {
   return { name: inBox ? "" : typed, link: inBox ? typed : $("linkInput").value.trim(), issuer: $("issuerInput").value.trim() };
 }
 
+// what the site itself put in the form (an example, a recent check, a shared link).
+// It belongs to that one certificate, so it must not stay behind and be judged with the next one.
+let filled = { name: "", link: "", issuer: "" };
+
+function fillForm(name, link, issuer) {
+  $("certInput").value = name;
+  $("linkInput").value = link;
+  $("issuerInput").value = issuer;
+  $("moreBox").open = link !== "" || issuer !== "";
+  filled = { name: name, link: link, issuer: issuer };
+}
+
+// something new was typed in the big box: take away the details we filled in, keep the ones typed by hand
+function dropFilledDetails() {
+  let dropped = false;
+  if (filled.link !== "" && $("linkInput").value === filled.link) { $("linkInput").value = ""; dropped = true; }
+  if (filled.issuer !== "" && $("issuerInput").value === filled.issuer) { $("issuerInput").value = ""; dropped = true; }
+  if (dropped && $("linkInput").value === "" && $("issuerInput").value === "") $("moreBox").open = false;
+  filled = { name: "", link: "", issuer: "" };
+}
+
+// a certificate file is being read: an example that is still in the form untouched is not this certificate
+function clearUntouchedFill() {
+  const same = filled.name !== "" && $("certInput").value === filled.name &&
+    $("linkInput").value === filled.link && $("issuerInput").value === filled.issuer;
+  if (same) fillForm("", "", "");
+  filled = { name: "", link: "", issuer: "" };
+}
+
 const HINTS = [
   "Paste a link or ID, or type the certificate's name",
   "https://www.credly.com/badges/...",
@@ -291,7 +314,7 @@ let suggestAt = -1;      // which suggestion the arrow keys are on (-1 = none)
 
 function setupSmartBox() {
   const box = $("certInput");
-  box.addEventListener("input", () => { showDetect(); showSuggest(); });
+  box.addEventListener("input", () => { dropFilledDetails(); showDetect(); showSuggest(); });
   box.addEventListener("focus", showSuggest);
   box.addEventListener("blur", () => setTimeout(hideSuggest, 150));     // let a click on a suggestion land first
   box.addEventListener("keydown", e => {
@@ -448,10 +471,7 @@ function showRecent() {
       e.preventDefault();
       const r = list[Number(a.dataset.i)];
       // a result that came from a link alone goes back into the big box as that link
-      $("certInput").value = r.name || r.link || r.label;
-      $("linkInput").value = r.name ? (r.link || "") : "";
-      $("issuerInput").value = r.issuer || "";
-      $("moreBox").open = $("linkInput").value !== "" || $("issuerInput").value !== "";
+      fillForm(r.name || r.link || r.label, r.name ? (r.link || "") : "", r.issuer || "");
       fileNote("");
       showDetect();
       runCheck(true);
@@ -610,6 +630,7 @@ function readFile(file) {
     fileNote("The QR reader didn't load (it needs an internet connection).", true);
     return;
   }
+  clearUntouchedFill();
   fileNote("Reading " + file.name + "...");
   if (ok.kind === "pdf") readPdf(file);
   else readImage(file);
@@ -1401,10 +1422,7 @@ function wirePicks() {
     a.dataset.wired = "yes";
     a.addEventListener("click", e => {
       e.preventDefault();
-      $("certInput").value = a.dataset.name;
-      $("linkInput").value = "";
-      $("issuerInput").value = "";
-      $("moreBox").open = false;
+      fillForm(a.dataset.name, "", "");
       fileNote("");
       showDetect();
       runCheck(true);

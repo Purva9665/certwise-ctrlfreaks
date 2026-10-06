@@ -526,7 +526,7 @@ function checkGenuineAny(input, hasLink, methods, fakeUnis) {
       result.reasons.push("A certificate with no verification link or ID has no record anyone can check. Anyone could have made it.");
     } else {
       result.verdict = "Not checked yet";
-      result.reasons.push("Paste the verification link or ID printed on the certificate in step 2.");
+      result.reasons.push("Paste the verification link or ID printed on the certificate under \"More details\" at the top.");
     }
     return result;
   }

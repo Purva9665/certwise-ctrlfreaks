@@ -972,7 +972,7 @@ html {
 }
 
 /* a link from the navigation should not hide its section under the bar */
-section[id], #result, header[id] {
+section[id], #result, #customResult, header[id] {
   scroll-margin-top: 70px;
 }
 
